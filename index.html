@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TT Analyzer 7.0 — Professional Line Trader</title>
+<title>TT Analyzer 8.0 — Live Trading System</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 :root{
---bg:#090a0f;
---card:#151821;
+--bg:#08090e;
+--card:#141721;
 --accent:#2563eb;
 --good:#22c55e;
 --warn:#f59e0b;
@@ -31,7 +31,7 @@ color:var(--text);
 }
 
 .container{
-max-width:430px;
+max-width:440px;
 margin:auto;
 padding:14px;
 }
@@ -39,7 +39,7 @@ padding:14px;
 h1{
 text-align:center;
 font-size:22px;
-margin-bottom:12px;
+margin-bottom:10px;
 }
 
 .card{
@@ -61,11 +61,18 @@ cursor:pointer;
 
 input[type=file]{display:none;}
 
-.status{
-text-align:center;
+input[type=number]{
+width:100%;
+padding:12px;
+border-radius:10px;
+border:none;
+margin-top:6px;
+font-size:15px;
+}
+
+label{
 font-size:13px;
 color:var(--muted);
-margin-top:6px;
 }
 
 .row{
@@ -93,39 +100,70 @@ font-size:16px;
 font-weight:600;
 margin-bottom:6px;
 }
+
+button{
+width:100%;
+padding:12px;
+border-radius:10px;
+border:none;
+margin-top:8px;
+font-size:15px;
+cursor:pointer;
+}
+
+.btn-good{background:var(--good);color:#000;}
+.btn-warn{background:var(--warn);color:#000;}
+.btn-bad{background:var(--bad);color:#fff;}
 </style>
 </head>
 
 <body>
 <div class="container">
 
-<h1>🏓 TT Analyzer 7.0</h1>
+<h1>🏓 TT Analyzer 8.0</h1>
 
 <div class="card">
 <label class="upload">
-📸 Загрузить LIVE-скрин 5-й партии
+📸 Загрузить LIVE-линию
 <input type="file" accept="image/*" onchange="analyze(event)">
 </label>
-<div class="status" id="status"></div>
+</div>
+
+<div class="card">
+<label>Банк</label>
+<input type="number" id="bank" placeholder="например 1000">
+<label>Риск на сделку (%)</label>
+<input type="number" id="risk" placeholder="например 2">
 </div>
 
 <div class="card" id="output">
-Загрузите скриншот линии
+Загрузите скриншот
+</div>
+
+<div class="card">
+<div class="highlight">📊 Журнал сделок</div>
+<div id="log"></div>
+</div>
+
+<div class="card">
+<div class="highlight">📈 ROI-анализ</div>
+<div id="roi"></div>
 </div>
 
 </div>
 
 <script>
-function analyze(e){
-const status=document.getElementById('status');
-status.innerText='⏳ OCR...';
+let currentTrade=null;
+let trades=JSON.parse(localStorage.getItem('tt_trades')||'[]');
 
+renderLog();
+renderROI();
+
+function analyze(e){
 Tesseract.recognize(
 e.target.files[0],
-'rus',
-{logger:m=>status.innerText=`⏳ ${Math.round(m.progress*100)}%`}
+'rus'
 ).then(r=>{
-status.innerText='✅ OCR завершён';
 parseLine(r.data.text);
 });
 }
@@ -133,14 +171,11 @@ parseLine(r.data.text);
 function parseLine(text){
 const odds=text.match(/\d\.\d{2}/g);
 if(!odds||odds.length<10){
-document.getElementById('output').innerHTML=
-'<div class="bad">❌ Линия не распознана</div>';
+document.getElementById('output').innerHTML='❌ Линия не распознана';
 return;
 }
 
 const nums=odds.map(Number);
-
-// парсим тоталы (как на скрине БК)
 let totals=[
 {line:16.5, tm:nums[2], tb:nums[3]},
 {line:17.5, tm:nums[4], tb:nums[5]},
@@ -150,83 +185,93 @@ let totals=[
 ];
 
 let candidates=[];
-let lbi=0;
-
 totals.forEach(t=>{
-let minOdd=Math.min(t.tm,t.tb);
-let maxOdd=Math.max(t.tm,t.tb);
-let diff=maxOdd-minOdd;
-
-lbi+=diff*12;
-
-if(minOdd>=1.70){
+let min=Math.min(t.tm,t.tb);
+let max=Math.max(t.tm,t.tb);
+if(min>=1.70){
 candidates.push({
 line:t.line,
 side:t.tm>t.tb?'ТБ':'ТМ',
-odd:minOdd,
-score:diff*minOdd
+odd:min,
+edge:(max-min)*min
 });
 }
 });
 
-lbi=Math.min(100,Math.round(lbi));
-
-candidates.sort((a,b)=>b.score-a.score);
-
-let best=candidates[0];
-let second=candidates[1];
-
-let decision='❌ ПРОПУСТИТЬ';
-let cls='bad';
-
-if(best && lbi>=60){
-decision='✅ СТАВИТЬ';
-cls='good';
-}else if(best){
-decision='⚠️ ОСТОРОЖНО';
-cls='warn';
+candidates.sort((a,b)=>b.edge-a.edge);
+if(!candidates.length){
+document.getElementById('output').innerHTML='❌ Нет value ≥1.70';
+return;
 }
+
+let bet=candidates[0];
+let bank=Number(document.getElementById('bank').value);
+let risk=Number(document.getElementById('risk').value);
+let stake=((bank*risk)/100).toFixed(2);
+
+currentTrade={bet,stake};
 
 document.getElementById('output').innerHTML=`
-<div class="row"><span>Индекс перекоса линии</span><b>${lbi}/100</b></div>
-
-${best ? `
 <div class="block good">
-<div class="highlight">⭐ Основная ставка</div>
-${best.side} ${best.line} @ ${best.odd}
-</div>` : `
-<div class="block bad">
-<div class="highlight">❌ Подходящих ставок нет</div>
-Все value ниже 1.70
-</div>`}
-
-${second ? `
-<div class="block warn">
-<div class="highlight">⭐ Альтернатива</div>
-${second.side} ${second.line} @ ${second.odd}
-</div>` : ''}
-
-<div class="block bad">
-<div class="highlight">❌ Исключено</div>
-Коэффициенты ниже 1.70<br>
-Ложные фавориты (1.10–1.30)
+<div class="highlight">⭐ Сделка</div>
+${bet.side} ${bet.line} @ ${bet.odd}<br>
+Ставка: ${stake}
 </div>
 
-<div class="block ${cls}">
-<div class="highlight">🚦 Финальное решение</div>
-${decision}
-</div>
+<button class="btn-good" onclick="closeTrade('win')">✔️ Win</button>
+<button class="btn-bad" onclick="closeTrade('lose')">❌ Lose</button>
+`;
+}
 
-<div class="block">
-<div class="highlight">🧠 Логика</div>
-• Анализ перекоса тоталов<br>
-• Отсечение минусовых кэфов<br>
-• Фокус на масштабируемом value
-</div>
+function closeTrade(result){
+let profit=result==='win'
+? currentTrade.stake*(currentTrade.bet.odd-1)
+: -currentTrade.stake;
+
+trades.push({
+date:new Date().toLocaleString(),
+bet:`${currentTrade.bet.side} ${currentTrade.bet.line}`,
+odd:currentTrade.bet.odd,
+stake:currentTrade.stake,
+profit:profit
+});
+
+localStorage.setItem('tt_trades',JSON.stringify(trades));
+renderLog();
+renderROI();
+document.getElementById('output').innerHTML='Сделка сохранена';
+}
+
+function renderLog(){
+const el=document.getElementById('log');
+el.innerHTML='';
+trades.slice().reverse().forEach(t=>{
+el.innerHTML+=`
+<div class="row">
+<span>${t.bet} @ ${t.odd}</span>
+<b style="color:${t.profit>=0?'#22c55e':'#ef4444'}">
+${t.profit.toFixed(2)}
+</b>
+</div>`;
+});
+}
+
+function renderROI(){
+const el=document.getElementById('roi');
+let total=trades.length;
+let profit=trades.reduce((a,b)=>a+b.profit,0);
+let staked=trades.reduce((a,b)=>a+Number(b.stake),0);
+let roi=staked? (profit/staked*100):0;
+
+el.innerHTML=`
+<div class="row"><span>Сделок</span><b>${total}</b></div>
+<div class="row"><span>Профит</span><b>${profit.toFixed(2)}</b></div>
+<div class="row"><span>ROI</span><b>${roi.toFixed(1)}%</b></div>
 `;
 }
 </script>
 
 </body>
 </html>
+
 
