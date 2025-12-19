@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TT Analyzer</title>
+
+<!-- OCR -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<style>
+:root {
+    --bg: #0e0e11;
+    --card: #1a1a22;
+    --accent: #3b82f6;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.container {
+    max-width: 420px;
+    margin: auto;
+    padding: 16px;
+}
+
+h1 {
+    text-align: center;
+    font-size: 22px;
+    margin-bottom: 16px;
+}
+
+.card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+.upload-btn {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.status {
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--muted);
+    text-align: center;
+}
+
+.result {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #2a2a35;
+}
+
+.recommend {
+    background: #10203a;
+    border-left: 4px solid var(--accent);
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>🏓 TT Analyzer</h1>
+
+    <div class="card">
+        <label class="upload-btn">
+            📸 Загрузить скриншот
+            <input type="file" accept="image/*" onchange="analyzeImage(event)">
+        </label>
+        <div class="status" id="status"></div>
+    </div>
+
+    <div class="card">
+        <div class="result" id="result">
+            Загрузите скрин для анализа
+        </div>
+    </div>
+</div>
+
+<script>
+function analyzeImage(event) {
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+
+    status.innerText = '⏳ Распознавание текста...';
+    result.innerHTML = '';
+
+    const file = event.target.files[0];
+
+    Tesseract.recognize(
+        file,
+        'rus',
+        { logger: m => status.innerText = `⏳ ${Math.round(m.progress * 100)}%` }
+    ).then(({ data: { text } }) => {
+        status.innerText = '✅ Анализ завершён';
+        processText(text);
+    });
+}
+
+function processText(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    let matches = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('-') && lines[i+1]?.match(/\d:\d/)) {
+            matches.push(lines[i] + ' ' + lines[i+1]);
+        }
+    }
+
+    let totalMatches = matches.length;
+    let totalSets = 0;
+    let totalPoints = 0;
+    let overMatches = 0;
+    let fiveSetMatches = 0;
+
+    matches.forEach(m => {
+        const sets = m.match(/\((.*?)\)/);
+        if (!sets) return;
+
+        const setArr = sets[1].split(',');
+        totalSets += setArr.length;
+
+        if (setArr.length === 5) fiveSetMatches++;
+
+        setArr.forEach(s => {
+            const [a, b] = s.split(':').map(Number);
+            totalPoints += a + b;
+        });
+
+        if (totalPoints / totalSets > 18) overMatches++;
+    });
+
+    let avgSets = (totalSets / totalMatches).toFixed(2);
+    let avgPoints = (totalPoints / totalMatches).toFixed(1);
+
+    document.getElementById('result').innerHTML = `
+        <div class="stat"><span>Матчей</span><b>${totalMatches}</b></div>
+        <div class="stat"><span>Среднее сетов</span><b>${avgSets}</b></div>
+        <div class="stat"><span>Средний тотал очков</span><b>${avgPoints}</b></div>
+        <div class="stat"><span>5 сетов</span><b>${fiveSetMatches}</b></div>
+
+        <div class="recommend">
+            💡 <b>Рекомендации:</b><br>
+            • Если игроки часто играют 4–5 сетов → <b>ТБ по сетам</b><br>
+            • Высокий средний тотал → <b>ТБ очков</b><br>
+            • Мало 5-сетовых → <b>Победа 3:0 / 3:1</b>
+        </div>
+    `;
+}
+</script>
+
+</body>
+</html>
