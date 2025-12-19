@@ -3,17 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/icon231.png">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TNA1.3">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>TT Analyzer 6.0 — Line Scanner</title>
+<title>TT Analyzer 7.0 — Professional Line Trader</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 :root{
---bg:#0a0b10;
+--bg:#090a0f;
 --card:#151821;
 --accent:#2563eb;
 --good:#22c55e;
@@ -95,6 +91,7 @@ border-radius:12px;
 .highlight{
 font-size:16px;
 font-weight:600;
+margin-bottom:6px;
 }
 </style>
 </head>
@@ -102,18 +99,18 @@ font-weight:600;
 <body>
 <div class="container">
 
-<h1>🏓 TT Analyzer 6.0</h1>
+<h1>🏓 TT Analyzer 7.0</h1>
 
 <div class="card">
 <label class="upload">
-📸 Загрузить LIVE-скрин
+📸 Загрузить LIVE-скрин 5-й партии
 <input type="file" accept="image/*" onchange="analyze(event)">
 </label>
 <div class="status" id="status"></div>
 </div>
 
 <div class="card" id="output">
-Загрузите скриншот линии 5-й партии
+Загрузите скриншот линии
 </div>
 
 </div>
@@ -135,7 +132,7 @@ parseLine(r.data.text);
 
 function parseLine(text){
 const odds=text.match(/\d\.\d{2}/g);
-if(!odds||odds.length<8){
+if(!odds||odds.length<10){
 document.getElementById('output').innerHTML=
 '<div class="bad">❌ Линия не распознана</div>';
 return;
@@ -143,9 +140,7 @@ return;
 
 const nums=odds.map(Number);
 
-// ожидаемый порядок (как в БК):
-// 1 | 2 | TM16.5 | TB16.5 | TM17.5 | TB17.5 | TM18.5 | TB18.5 | TM19.5 | TB19.5 | TM20.5 | TB20.5 | Чет | Нечет
-
+// парсим тоталы (как на скрине БК)
 let totals=[
 {line:16.5, tm:nums[2], tb:nums[3]},
 {line:17.5, tm:nums[4], tb:nums[5]},
@@ -154,43 +149,79 @@ let totals=[
 {line:20.5, tm:nums[10], tb:nums[11]}
 ];
 
-let best=null;
+let candidates=[];
 let lbi=0;
 
 totals.forEach(t=>{
-let diff=Math.abs(t.tm-t.tb);
-let score=(diff*20)+(t.tb>t.tm?10:0);
-if(!best||score>best.score){
-best={...t,score};
+let minOdd=Math.min(t.tm,t.tb);
+let maxOdd=Math.max(t.tm,t.tb);
+let diff=maxOdd-minOdd;
+
+lbi+=diff*12;
+
+if(minOdd>=1.70){
+candidates.push({
+line:t.line,
+side:t.tm>t.tb?'ТБ':'ТМ',
+odd:minOdd,
+score:diff*minOdd
+});
 }
-lbi+=diff*10;
 });
 
 lbi=Math.min(100,Math.round(lbi));
 
+candidates.sort((a,b)=>b.score-a.score);
+
+let best=candidates[0];
+let second=candidates[1];
+
 let decision='❌ ПРОПУСТИТЬ';
 let cls='bad';
-if(lbi>=70){decision='✅ СТАВИТЬ';cls='good';}
-else if(lbi>=45){decision='⚠️ ОСТОРОЖНО';cls='warn';}
+
+if(best && lbi>=60){
+decision='✅ СТАВИТЬ';
+cls='good';
+}else if(best){
+decision='⚠️ ОСТОРОЖНО';
+cls='warn';
+}
 
 document.getElementById('output').innerHTML=`
 <div class="row"><span>Индекс перекоса линии</span><b>${lbi}/100</b></div>
 
-<div class="block ${cls}">
-<div class="highlight">⭐ Лучшая ставка</div>
-Тотал ${best.line}<br>
-${best.tb<best.tm?'ТБ':'ТМ'} @ ${Math.min(best.tm,best.tb)}
+${best ? `
+<div class="block good">
+<div class="highlight">⭐ Основная ставка</div>
+${best.side} ${best.line} @ ${best.odd}
+</div>` : `
+<div class="block bad">
+<div class="highlight">❌ Подходящих ставок нет</div>
+Все value ниже 1.70
+</div>`}
+
+${second ? `
+<div class="block warn">
+<div class="highlight">⭐ Альтернатива</div>
+${second.side} ${second.line} @ ${second.odd}
+</div>` : ''}
+
+<div class="block bad">
+<div class="highlight">❌ Исключено</div>
+Коэффициенты ниже 1.70<br>
+Ложные фавориты (1.10–1.30)
 </div>
 
-<div class="block forecast">
+<div class="block ${cls}">
+<div class="highlight">🚦 Финальное решение</div>
+${decision}
+</div>
+
+<div class="block">
 <div class="highlight">🧠 Логика</div>
-• БК сильно зажал одну сторону<br>
-• Медиана смещена<br>
-• Исход партии симметричен → value в тотале
-</div>
-
-<div class="block ${cls}">
-<b>Решение:</b> ${decision}
+• Анализ перекоса тоталов<br>
+• Отсечение минусовых кэфов<br>
+• Фокус на масштабируемом value
 </div>
 `;
 }
@@ -198,3 +229,4 @@ ${best.tb<best.tm?'ТБ':'ТМ'} @ ${Math.min(best.tm,best.tb)}
 
 </body>
 </html>
+
