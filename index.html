@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TT Analyzer 2.0</title>
+<title>TT Analyzer 3.0</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
@@ -86,14 +86,16 @@ input { display:none; }
 
 .good { background:rgba(34,197,94,.15); color:var(--good); }
 .warn { background:rgba(245,158,11,.15); color:var(--warn); }
+.bad  { background:rgba(239,68,68,.15); color:var(--bad); }
 
 .forecast {
     background:#0f1d38;
     border-left:4px solid var(--accent);
     padding:14px;
     border-radius:10px;
-    margin-top:10px;
+    margin-top:12px;
     font-size:14px;
+    line-height:1.5;
 }
 </style>
 </head>
@@ -101,7 +103,7 @@ input { display:none; }
 <body>
 
 <div class="container">
-<h1>🏓 TT Analyzer 2.0</h1>
+<h1>🏓 TT Analyzer 3.0</h1>
 
 <div class="card">
 <label class="upload">
@@ -118,80 +120,124 @@ input { display:none; }
 
 <script>
 function analyze(e) {
-    const status=document.getElementById('status');
-    const out=document.getElementById('output');
-    out.innerHTML='';
-    status.innerText='⏳ Распознавание...';
+    const status = document.getElementById('status');
+    const out = document.getElementById('output');
+    out.innerHTML = '';
+    status.innerText = '⏳ Распознавание текста...';
 
     Tesseract.recognize(
         e.target.files[0],
         'rus',
-        { logger:m=>status.innerText=`⏳ ${Math.round(m.progress*100)}%` }
-    ).then(r=>{
-        status.innerText='✅ Анализ готов';
-        parseText(r.data.text);
+        { logger:m => status.innerText = `⏳ ${Math.round(m.progress*100)}%` }
+    ).then(res => {
+        status.innerText = '✅ Анализ завершён';
+        parseText(res.data.text);
     });
 }
 
 function parseText(text) {
-    const lines=text.split('\n').map(l=>l.trim()).filter(l=>l);
-    let matches=[];
+    const lines = text
+        .replace(/\s+/g,' ')
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l);
 
-    for(let i=0;i<lines.length;i++){
-        if(lines[i].match(/\d:\d/) && lines[i].includes('('))
+    let matches = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].match(/\d:\d/) && lines[i].includes('(')) {
             matches.push(lines[i]);
+        }
     }
 
-    let total=matches.length;
-    let s3_0=0,s3_1=0,s3_2=0;
-    let sets=0,points=0,five=0;
+    if (matches.length === 0) {
+        document.getElementById('output').innerHTML =
+            '<span class="bad">❌ Не удалось распознать матчи. Попробуйте другой скрин.</span>';
+        return;
+    }
 
-    matches.forEach(m=>{
-        const score=m.match(/(\d):(\d)/);
-        const setsData=m.match(/\((.*?)\)/)[1].split(',');
-        const cnt=setsData.length;
+    let total = matches.length;
+    let s30=0, s31=0, s32=0;
+    let sets=0, points=0, five=0;
 
-        sets+=cnt;
-        if(cnt===5) five++;
+    matches.forEach(m => {
+        const score = m.match(/(\d)\s*:\s*(\d)/);
+        const setsBlock = m.match(/\((.*?)\)/);
+        if (!score || !setsBlock) return;
 
-        if(score[1]==3 && score[2]==0) s3_0++;
-        if(score[1]==3 && score[2]==1) s3_1++;
-        if(score[1]==3 && score[2]==2) s3_2++;
+        const setArr = setsBlock[1].split(',');
+        sets += setArr.length;
+        if (setArr.length === 5) five++;
 
-        setsData.forEach(s=>{
-            let [a,b]=s.split(':').map(Number);
-            points+=a+b;
+        if (score[1]==3 && score[2]==0) s30++;
+        if (score[1]==3 && score[2]==1) s31++;
+        if (score[1]==3 && score[2]==2) s32++;
+
+        setArr.forEach(s => {
+            const nums = s.match(/(\d+)\s*:\s*(\d+)/);
+            if (nums) points += Number(nums[1]) + Number(nums[2]);
         });
     });
 
-    let avgSets=(sets/total).toFixed(2);
-    let avgPoints=(points/total).toFixed(1);
-    let avgSetPoints=(points/sets).toFixed(1);
+    const avgSets = (sets/total).toFixed(2);
+    const avgPoints = (points/total).toFixed(1);
+    const avgSetPoints = (points/sets).toFixed(1);
 
-    let profile=avgSets>=4 ? 'Длинная лига' : 'Короткая лига';
-    let mainBet=avgSets>=4 ? 'ТБ по сетам (3.5)' : 'Победа 3:0 / 3:1';
-    let altBet=avgSetPoints>18 ? 'ТБ очков' : 'ТМ очков';
+    const p30 = Math.round((s30/total)*100);
+    const p31 = Math.round((s31/total)*100);
+    const p32 = Math.round((s32/total)*100);
+    const p4plus = Math.round(((s31+s32)/total)*100);
+    const p5 = Math.round((five/total)*100);
 
-    document.getElementById('output').innerHTML=`
+    let profile, confidence, mainBet, altBet, riskyBet, avoid;
+
+    if (avgSets >= 4.2) {
+        profile = 'Длинная лига';
+        mainBet = 'ТБ по сетам (3.5)';
+        altBet = 'ТБ очков';
+        riskyBet = '5 сетов — Да';
+        avoid = 'ТМ сетов, точный счёт';
+        confidence = Math.min(85, 60 + p4plus/2);
+    } else if (avgSets >= 3.7) {
+        profile = 'Сбалансированная';
+        mainBet = 'ТБ 3.5 сетов';
+        altBet = 'Победа 3:1';
+        riskyBet = 'ТБ очков';
+        avoid = 'Победа 3:0';
+        confidence = 65;
+    } else {
+        profile = 'Короткая лига';
+        mainBet = 'Победа 3:0 / 3:1';
+        altBet = 'ТМ сетов (3.5)';
+        riskyBet = 'ТМ очков';
+        avoid = '5 сетов';
+        confidence = Math.min(80, 55 + p30);
+    }
+
+    document.getElementById('output').innerHTML = `
     <div class="row"><span>Матчей</span><b>${total}</b></div>
     <div class="row"><span>Среднее сетов</span><b>${avgSets}</b></div>
     <div class="row"><span>Средний тотал</span><b>${avgPoints}</b></div>
     <div class="row"><span>Очков в сете</span><b>${avgSetPoints}</b></div>
 
-    <div class="row"><span>3:0</span><b>${s3_0}</b></div>
-    <div class="row"><span>3:1</span><b>${s3_1}</b></div>
-    <div class="row"><span>3:2</span><b>${s3_2}</b></div>
+    <div class="row"><span>3:0</span><b>${p30}%</b></div>
+    <div class="row"><span>3:1</span><b>${p31}%</b></div>
+    <div class="row"><span>3:2</span><b>${p32}%</b></div>
+    <div class="row"><span>4+ сетов</span><b>${p4plus}%</b></div>
+    <div class="row"><span>5 сетов</span><b>${p5}%</b></div>
 
     <div class="row">
-        <span>Тип лиги</span>
-        <span class="tag ${avgSets>=4?'good':'warn'}">${profile}</span>
+        <span>Тип линии</span>
+        <span class="tag good">${profile}</span>
     </div>
 
     <div class="forecast">
-        ⭐ <b>Прогноз на следующую ставку:</b><br><br>
-        Основная: <b>${mainBet}</b><br>
-        Альтернатива: <b>${altBet}</b><br><br>
-        ❌ Избегать ставок «на точный счёт», если среднее ≥ 4 сетов
+        ⭐ <b>Прогноз следующей ставки</b><br><br>
+        <b>Основная:</b> ${mainBet}<br>
+        <b>Альтернатива:</b> ${altBet}<br>
+        <b>Агрессивная:</b> ${riskyBet}<br><br>
+        ❌ <b>Избегать:</b> ${avoid}<br><br>
+        📊 <b>Уверенность:</b> ${confidence}%
     </div>
     `;
 }
@@ -199,4 +245,3 @@ function parseText(text) {
 
 </body>
 </html>
-
