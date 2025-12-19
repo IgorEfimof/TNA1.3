@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TT Analyzer 9.0 — Line Trading Pro</title>
+<title>TT Analyzer 10.0 — Live Trading Terminal</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 :root{
---bg:#07080d;
---card:#131622;
+--bg:#06070c;
+--card:#121522;
 --accent:#2563eb;
 --good:#22c55e;
 --warn:#f59e0b;
@@ -31,7 +31,7 @@ color:var(--text);
 }
 
 .container{
-max-width:460px;
+max-width:480px;
 margin:auto;
 padding:14px;
 }
@@ -110,13 +110,15 @@ cursor:pointer;
 
 .btn-good{background:var(--good);color:#000;}
 .btn-bad{background:var(--bad);color:#fff;}
-.btn-warn{background:var(--warn);color:#000;}
 
-canvas{
-width:100%;
-height:180px;
-background:#0b0d15;
-border-radius:12px;
+.alert{
+animation:flash 1s infinite;
+}
+
+@keyframes flash{
+0%{background:#22c55e;}
+50%{background:#16a34a;}
+100%{background:#22c55e;}
 }
 </style>
 </head>
@@ -124,55 +126,42 @@ border-radius:12px;
 <body>
 <div class="container">
 
-<h1>🏓 TT Analyzer 9.0</h1>
+<h1>🏓 TT Analyzer 10.0</h1>
 
 <div class="card">
 <label class="upload">
-📸 Загрузить LIVE-линию
+📸 Добавить матч (LIVE линия)
 <input type="file" accept="image/*" onchange="analyze(event)">
 </label>
 </div>
 
 <div class="card">
 <label>Банк</label>
-<input type="number" id="bank" placeholder="1000">
-<label>Сценарий выхода</label>
-<select id="exit">
-<option>Let It Ride</option>
-<option>Lock Profit</option>
-<option>Min Loss</option>
-<option>Auto Hedge</option>
-</select>
+<input type="number" id="bank" value="1000">
 </div>
 
-<div class="card" id="output">Ожидание скрина</div>
+<div class="card" id="output">
+Ожидание данных
+</div>
 
 <div class="card">
-<div class="highlight">📒 Журнал сделок</div>
+<div class="highlight">📒 Multi-Match Log</div>
 <div id="log"></div>
-</div>
-
-<div class="card">
-<div class="highlight">📈 Equity Curve</div>
-<canvas id="equity"></canvas>
 </div>
 
 </div>
 
 <script>
-let trades=JSON.parse(localStorage.getItem('tt9_trades')||'[]');
-let current=null;
-
-renderLog();
-drawEquity();
+let matches=[];
+let lastLine=null;
 
 function analyze(e){
 Tesseract.recognize(e.target.files[0],'rus').then(r=>{
-parseLine(r.data.text);
+processLine(r.data.text);
 });
 }
 
-function parseLine(text){
+function processLine(text){
 const odds=text.match(/\d\.\d{2}/g);
 if(!odds||odds.length<10){
 document.getElementById('output').innerHTML='❌ OCR ошибка';
@@ -189,108 +178,74 @@ let totals=[
 ];
 
 let best=null;
-let edge=0;
+let momentum=0;
 
 totals.forEach(t=>{
 let min=Math.min(t.tm,t.tb);
 let max=Math.max(t.tm,t.tb);
 if(min>=1.70){
-let e=(max-min)*min;
-if(e>edge){
-edge=e;
+let edge=(max-min)*min;
+if(!best||edge>best.edge){
 best={
 line:t.l,
 side:t.tm>t.tb?'ТБ':'ТМ',
 odd:min,
-prob:1/max
+edge
 };
 }
 }
 });
 
-if(!best){
-document.getElementById('output').innerHTML='❌ Нет value ≥1.70';
-return;
+if(lastLine){
+momentum=best.edge-lastLine.edge;
 }
+lastLine=best;
+
+let variance=best.edge<0.5?'HIGH':best.edge<1?'MEDIUM':'LOW';
 
 let bank=Number(document.getElementById('bank').value);
-let kelly=(best.prob*best.odd-1)/(best.odd-1);
-kelly=Math.max(0,kelly)*0.25;
-let stake=(bank*kelly).toFixed(2);
+let prob=1/(best.odd+0.05);
+let kelly=(prob*best.odd-1)/(best.odd-1);
+let stake=Math.max(0,kelly*0.25*bank).toFixed(2);
 
-current={best,stake};
+let alert=stake>0 && momentum>0;
 
 document.getElementById('output').innerHTML=`
-<div class="block good">
-<div class="highlight">⭐ Сделка (Kelly)</div>
+<div class="block ${alert?'good alert':'good'}">
+<div class="highlight">⭐ LIVE SETUP</div>
 ${best.side} ${best.line} @ ${best.odd}<br>
-Kelly stake: ${stake}
+Stake (Kelly): ${stake}<br>
+Momentum: ${momentum.toFixed(2)}<br>
+Variance: ${variance}
 </div>
 
-<button class="btn-good" onclick="closeTrade('win')">✔️ Win</button>
-<button class="btn-bad" onclick="closeTrade('lose')">❌ Lose</button>
+${alert?'<button class="btn-good">🔔 ENTRY ALERT</button>':''}
 `;
-}
 
-function closeTrade(res){
-let profit=res==='win'
-? current.stake*(current.best.odd-1)
-: -current.stake;
-
-trades.push({
-date:new Date().toLocaleString(),
-bet:`${current.best.side} ${current.best.line}`,
-odd:current.best.odd,
-stake:Number(current.stake),
-profit
+matches.push({
+time:new Date().toLocaleTimeString(),
+bet:`${best.side} ${best.line}`,
+odd:best.odd,
+stake,
+momentum,
+variance
 });
 
-localStorage.setItem('tt9_trades',JSON.stringify(trades));
 renderLog();
-drawEquity();
-document.getElementById('output').innerHTML='Сделка зафиксирована';
 }
 
 function renderLog(){
 const el=document.getElementById('log');
 el.innerHTML='';
-trades.slice().reverse().forEach(t=>{
+matches.slice().reverse().forEach(m=>{
 el.innerHTML+=`
 <div class="row">
-<span>${t.bet} @ ${t.odd}</span>
-<b style="color:${t.profit>=0?'#22c55e':'#ef4444'}">
-${t.profit.toFixed(2)}
-</b>
+<span>${m.time} — ${m.bet}</span>
+<b>${m.odd}</b>
 </div>`;
 });
-}
-
-function drawEquity(){
-const c=document.getElementById('equity');
-const ctx=c.getContext('2d');
-ctx.clearRect(0,0,c.width,c.height);
-
-let equity=[0];
-trades.forEach(t=>equity.push(equity[equity.length-1]+t.profit));
-
-let max=Math.max(...equity);
-let min=Math.min(...equity);
-let range=max-min||1;
-
-ctx.strokeStyle='#22c55e';
-ctx.beginPath();
-equity.forEach((v,i)=>{
-let x=i*(c.width/(equity.length-1||1));
-let y=c.height-((v-min)/range*c.height);
-if(i===0)ctx.moveTo(x,y);
-else ctx.lineTo(x,y);
-});
-ctx.stroke();
 }
 </script>
 
 </body>
 </html>
-
-
-
