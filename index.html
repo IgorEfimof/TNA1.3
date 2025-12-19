@@ -3,18 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/icon231.png">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TNA8">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>TT Analyzer 8.0 — Live Trading System</title>
+<title>TT Analyzer 11.0 — Trading Desk</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 :root{
---bg:#08090e;
---card:#141721;
+--bg:#05060b;
+--card:#111425;
 --accent:#2563eb;
 --good:#22c55e;
 --warn:#f59e0b;
@@ -35,7 +31,7 @@ color:var(--text);
 }
 
 .container{
-max-width:440px;
+max-width:500px;
 margin:auto;
 padding:14px;
 }
@@ -53,58 +49,6 @@ padding:16px;
 margin-bottom:14px;
 }
 
-.upload{
-background:var(--accent);
-color:#fff;
-padding:14px;
-text-align:center;
-border-radius:12px;
-font-size:16px;
-cursor:pointer;
-}
-
-input[type=file]{display:none;}
-
-input[type=number]{
-width:100%;
-padding:12px;
-border-radius:10px;
-border:none;
-margin-top:6px;
-font-size:15px;
-}
-
-label{
-font-size:13px;
-color:var(--muted);
-}
-
-.row{
-display:flex;
-justify-content:space-between;
-padding:6px 0;
-border-bottom:1px solid #222;
-font-size:14px;
-}
-
-.row:last-child{border:none;}
-
-.block{
-margin-top:12px;
-padding:14px;
-border-radius:12px;
-}
-
-.good{background:rgba(34,197,94,.12);}
-.warn{background:rgba(245,158,11,.12);}
-.bad{background:rgba(239,68,68,.12);}
-
-.highlight{
-font-size:16px;
-font-weight:600;
-margin-bottom:6px;
-}
-
 button{
 width:100%;
 padding:12px;
@@ -117,164 +61,146 @@ cursor:pointer;
 
 .btn-good{background:var(--good);color:#000;}
 .btn-warn{background:var(--warn);color:#000;}
-.btn-bad{background:var(--bad);color:#fff;}
+
+.row{
+display:flex;
+justify-content:space-between;
+padding:6px 0;
+border-bottom:1px solid #222;
+font-size:14px;
+}
+
+.block{
+margin-top:10px;
+padding:12px;
+border-radius:12px;
+}
+
+.good{background:rgba(34,197,94,.12);}
+.warn{background:rgba(245,158,11,.12);}
+.bad{background:rgba(239,68,68,.12);}
+
+canvas{
+width:100%;
+height:200px;
+background:#0b0d18;
+border-radius:12px;
+}
 </style>
 </head>
 
 <body>
 <div class="container">
 
-<h1>🏓 TT Analyzer 8.0</h1>
+<h1>🏓 TT Analyzer 11.0</h1>
 
 <div class="card">
-<label class="upload">
-📸 Загрузить LIVE-линию
-<input type="file" accept="image/*" onchange="analyze(event)">
-</label>
-</div>
-
-<div class="card">
-<label>Банк</label>
-<input type="number" id="bank" placeholder="например 1000">
-<label>Риск на сделку (%)</label>
-<input type="number" id="risk" placeholder="например 2">
+<button class="btn-good" onclick="startCapture()">📸 Start Auto-Capture</button>
+<button class="btn-warn" onclick="stopCapture()">⏹ Stop Capture</button>
 </div>
 
 <div class="card" id="output">
-Загрузите скриншот
+Ожидание линии
 </div>
 
 <div class="card">
-<div class="highlight">📊 Журнал сделок</div>
-<div id="log"></div>
+<div class="block">
+<b>📦 Портфель матчей</b>
+<div id="portfolio"></div>
+</div>
 </div>
 
 <div class="card">
-<div class="highlight">📈 ROI-анализ</div>
-<div id="roi"></div>
+<div class="block">
+<b>🔥 Heatmap рынка</b>
+<canvas id="heatmap"></canvas>
+</div>
 </div>
 
 </div>
 
 <script>
-let currentTrade=null;
-let trades=JSON.parse(localStorage.getItem('tt_trades')||'[]');
+let captureInterval=null;
+let portfolio=[];
+let heatData=[];
 
-renderLog();
-renderROI();
+// === AUTO SCREEN CAPTURE ===
+async function startCapture(){
+const stream=await navigator.mediaDevices.getDisplayMedia({video:true});
+const track=stream.getVideoTracks()[0];
+const imageCapture=new ImageCapture(track);
 
-function analyze(e){
-Tesseract.recognize(
-e.target.files[0],
-'rus'
-).then(r=>{
-parseLine(r.data.text);
+captureInterval=setInterval(async()=>{
+const bitmap=await imageCapture.grabFrame();
+runOCR(bitmap);
+},5000);
+}
+
+function stopCapture(){
+clearInterval(captureInterval);
+}
+
+// === OCR PIPELINE ===
+function runOCR(bitmap){
+const canvas=document.createElement('canvas');
+canvas.width=bitmap.width;
+canvas.height=bitmap.height;
+canvas.getContext('2d').drawImage(bitmap,0,0);
+
+Tesseract.recognize(canvas,'rus').then(r=>{
+analyzeLine(r.data.text);
 });
 }
 
-function parseLine(text){
+// === LINE ANALYSIS ===
+function analyzeLine(text){
 const odds=text.match(/\d\.\d{2}/g);
-if(!odds||odds.length<10){
-document.getElementById('output').innerHTML='❌ Линия не распознана';
-return;
-}
+if(!odds||odds.length<10) return;
 
 const nums=odds.map(Number);
-let totals=[
-{line:16.5, tm:nums[2], tb:nums[3]},
-{line:17.5, tm:nums[4], tb:nums[5]},
-{line:18.5, tm:nums[6], tb:nums[7]},
-{line:19.5, tm:nums[8], tb:nums[9]},
-{line:20.5, tm:nums[10], tb:nums[11]}
-];
+let edge=Math.abs(nums[3]-nums[2])*nums[2];
+let variance=edge<0.6?'HIGH':edge<1?'MEDIUM':'LOW';
 
-let candidates=[];
-totals.forEach(t=>{
-let min=Math.min(t.tm,t.tb);
-let max=Math.max(t.tm,t.tb);
-if(min>=1.70){
-candidates.push({
-line:t.line,
-side:t.tm>t.tb?'ТБ':'ТМ',
-odd:min,
-edge:(max-min)*min
-});
-}
-});
+let trade={
+time:new Date().toLocaleTimeString(),
+edge:edge.toFixed(2),
+variance
+};
 
-candidates.sort((a,b)=>b.edge-a.edge);
-if(!candidates.length){
-document.getElementById('output').innerHTML='❌ Нет value ≥1.70';
-return;
+portfolio.push(trade);
+heatData.push(edge);
+
+renderPortfolio();
+drawHeatmap();
 }
 
-let bet=candidates[0];
-let bank=Number(document.getElementById('bank').value);
-let risk=Number(document.getElementById('risk').value);
-let stake=((bank*risk)/100).toFixed(2);
-
-currentTrade={bet,stake};
-
-document.getElementById('output').innerHTML=`
-<div class="block good">
-<div class="highlight">⭐ Сделка</div>
-${bet.side} ${bet.line} @ ${bet.odd}<br>
-Ставка: ${stake}
-</div>
-
-<button class="btn-good" onclick="closeTrade('win')">✔️ Win</button>
-<button class="btn-bad" onclick="closeTrade('lose')">❌ Lose</button>
-`;
-}
-
-function closeTrade(result){
-let profit=result==='win'
-? currentTrade.stake*(currentTrade.bet.odd-1)
-: -currentTrade.stake;
-
-trades.push({
-date:new Date().toLocaleString(),
-bet:`${currentTrade.bet.side} ${currentTrade.bet.line}`,
-odd:currentTrade.bet.odd,
-stake:currentTrade.stake,
-profit:profit
-});
-
-localStorage.setItem('tt_trades',JSON.stringify(trades));
-renderLog();
-renderROI();
-document.getElementById('output').innerHTML='Сделка сохранена';
-}
-
-function renderLog(){
-const el=document.getElementById('log');
+// === PORTFOLIO ===
+function renderPortfolio(){
+const el=document.getElementById('portfolio');
 el.innerHTML='';
-trades.slice().reverse().forEach(t=>{
+portfolio.slice(-5).forEach(t=>{
 el.innerHTML+=`
 <div class="row">
-<span>${t.bet} @ ${t.odd}</span>
-<b style="color:${t.profit>=0?'#22c55e':'#ef4444'}">
-${t.profit.toFixed(2)}
-</b>
+<span>${t.time}</span>
+<b>${t.edge} | ${t.variance}</b>
 </div>`;
 });
 }
 
-function renderROI(){
-const el=document.getElementById('roi');
-let total=trades.length;
-let profit=trades.reduce((a,b)=>a+b.profit,0);
-let staked=trades.reduce((a,b)=>a+Number(b.stake),0);
-let roi=staked? (profit/staked*100):0;
+// === HEATMAP ===
+function drawHeatmap(){
+const c=document.getElementById('heatmap');
+const ctx=c.getContext('2d');
+ctx.clearRect(0,0,c.width,c.height);
 
-el.innerHTML=`
-<div class="row"><span>Сделок</span><b>${total}</b></div>
-<div class="row"><span>Профит</span><b>${profit.toFixed(2)}</b></div>
-<div class="row"><span>ROI</span><b>${roi.toFixed(1)}%</b></div>
-`;
+heatData.slice(-20).forEach((v,i)=>{
+let x=i*(c.width/20);
+let intensity=Math.min(1,v/2);
+ctx.fillStyle=`rgba(34,197,94,${intensity})`;
+ctx.fillRect(x,0,c.width/20,c.height);
+});
 }
 </script>
 
 </body>
 </html>
-
