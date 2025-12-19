@@ -3,243 +3,192 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TT Analyzer 3.0</title>
+<title>TT Analyzer 6.0 — Line Scanner</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
-:root {
-    --bg:#0b0c10;
-    --card:#161821;
-    --accent:#2563eb;
-    --good:#22c55e;
-    --warn:#f59e0b;
-    --bad:#ef4444;
-    --text:#e5e7eb;
-    --muted:#9ca3af;
+:root{
+--bg:#0a0b10;
+--card:#151821;
+--accent:#2563eb;
+--good:#22c55e;
+--warn:#f59e0b;
+--bad:#ef4444;
+--text:#e5e7eb;
+--muted:#9ca3af;
 }
 
-* {
-    box-sizing:border-box;
-    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif;
+*{
+box-sizing:border-box;
+font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif;
 }
 
-body {
-    margin:0;
-    background:var(--bg);
-    color:var(--text);
+body{
+margin:0;
+background:var(--bg);
+color:var(--text);
 }
 
-.container {
-    max-width:430px;
-    margin:auto;
-    padding:14px;
+.container{
+max-width:430px;
+margin:auto;
+padding:14px;
 }
 
-h1 {
-    text-align:center;
-    font-size:22px;
-    margin-bottom:12px;
+h1{
+text-align:center;
+font-size:22px;
+margin-bottom:12px;
 }
 
-.card {
-    background:var(--card);
-    border-radius:16px;
-    padding:16px;
-    margin-bottom:14px;
+.card{
+background:var(--card);
+border-radius:16px;
+padding:16px;
+margin-bottom:14px;
 }
 
-.upload {
-    background:var(--accent);
-    color:#fff;
-    padding:14px;
-    text-align:center;
-    border-radius:12px;
-    font-size:16px;
-    cursor:pointer;
+.upload{
+background:var(--accent);
+color:#fff;
+padding:14px;
+text-align:center;
+border-radius:12px;
+font-size:16px;
+cursor:pointer;
 }
 
-input { display:none; }
+input[type=file]{display:none;}
 
-.status {
-    text-align:center;
-    margin-top:8px;
-    font-size:13px;
-    color:var(--muted);
+.status{
+text-align:center;
+font-size:13px;
+color:var(--muted);
+margin-top:6px;
 }
 
-.row {
-    display:flex;
-    justify-content:space-between;
-    padding:6px 0;
-    border-bottom:1px solid #222;
-    font-size:14px;
+.row{
+display:flex;
+justify-content:space-between;
+padding:6px 0;
+border-bottom:1px solid #222;
+font-size:14px;
 }
 
-.row:last-child { border:none; }
+.row:last-child{border:none;}
 
-.tag {
-    padding:4px 10px;
-    border-radius:999px;
-    font-size:12px;
+.block{
+margin-top:12px;
+padding:14px;
+border-radius:12px;
 }
 
-.good { background:rgba(34,197,94,.15); color:var(--good); }
-.warn { background:rgba(245,158,11,.15); color:var(--warn); }
-.bad  { background:rgba(239,68,68,.15); color:var(--bad); }
+.good{background:rgba(34,197,94,.12);}
+.warn{background:rgba(245,158,11,.12);}
+.bad{background:rgba(239,68,68,.12);}
 
-.forecast {
-    background:#0f1d38;
-    border-left:4px solid var(--accent);
-    padding:14px;
-    border-radius:10px;
-    margin-top:12px;
-    font-size:14px;
-    line-height:1.5;
+.highlight{
+font-size:16px;
+font-weight:600;
 }
 </style>
 </head>
 
 <body>
-
 <div class="container">
-<h1>🏓 TT Analyzer 3.0</h1>
+
+<h1>🏓 TT Analyzer 6.0</h1>
 
 <div class="card">
 <label class="upload">
-📸 Загрузить скриншот
+📸 Загрузить LIVE-скрин
 <input type="file" accept="image/*" onchange="analyze(event)">
 </label>
 <div class="status" id="status"></div>
 </div>
 
 <div class="card" id="output">
-Загрузите скриншот для анализа
+Загрузите скриншот линии 5-й партии
 </div>
+
 </div>
 
 <script>
-function analyze(e) {
-    const status = document.getElementById('status');
-    const out = document.getElementById('output');
-    out.innerHTML = '';
-    status.innerText = '⏳ Распознавание текста...';
+function analyze(e){
+const status=document.getElementById('status');
+status.innerText='⏳ OCR...';
 
-    Tesseract.recognize(
-        e.target.files[0],
-        'rus',
-        { logger:m => status.innerText = `⏳ ${Math.round(m.progress*100)}%` }
-    ).then(res => {
-        status.innerText = '✅ Анализ завершён';
-        parseText(res.data.text);
-    });
+Tesseract.recognize(
+e.target.files[0],
+'rus',
+{logger:m=>status.innerText=`⏳ ${Math.round(m.progress*100)}%`}
+).then(r=>{
+status.innerText='✅ OCR завершён';
+parseLine(r.data.text);
+});
 }
 
-function parseText(text) {
-    const lines = text
-        .replace(/\s+/g,' ')
-        .split('\n')
-        .map(l => l.trim())
-        .filter(l => l);
+function parseLine(text){
+const odds=text.match(/\d\.\d{2}/g);
+if(!odds||odds.length<8){
+document.getElementById('output').innerHTML=
+'<div class="bad">❌ Линия не распознана</div>';
+return;
+}
 
-    let matches = [];
+const nums=odds.map(Number);
 
-    for (let i = 0; i < lines.length; i++) {
-        if (lines[i].match(/\d:\d/) && lines[i].includes('(')) {
-            matches.push(lines[i]);
-        }
-    }
+// ожидаемый порядок (как в БК):
+// 1 | 2 | TM16.5 | TB16.5 | TM17.5 | TB17.5 | TM18.5 | TB18.5 | TM19.5 | TB19.5 | TM20.5 | TB20.5 | Чет | Нечет
 
-    if (matches.length === 0) {
-        document.getElementById('output').innerHTML =
-            '<span class="bad">❌ Не удалось распознать матчи. Попробуйте другой скрин.</span>';
-        return;
-    }
+let totals=[
+{line:16.5, tm:nums[2], tb:nums[3]},
+{line:17.5, tm:nums[4], tb:nums[5]},
+{line:18.5, tm:nums[6], tb:nums[7]},
+{line:19.5, tm:nums[8], tb:nums[9]},
+{line:20.5, tm:nums[10], tb:nums[11]}
+];
 
-    let total = matches.length;
-    let s30=0, s31=0, s32=0;
-    let sets=0, points=0, five=0;
+let best=null;
+let lbi=0;
 
-    matches.forEach(m => {
-        const score = m.match(/(\d)\s*:\s*(\d)/);
-        const setsBlock = m.match(/\((.*?)\)/);
-        if (!score || !setsBlock) return;
+totals.forEach(t=>{
+let diff=Math.abs(t.tm-t.tb);
+let score=(diff*20)+(t.tb>t.tm?10:0);
+if(!best||score>best.score){
+best={...t,score};
+}
+lbi+=diff*10;
+});
 
-        const setArr = setsBlock[1].split(',');
-        sets += setArr.length;
-        if (setArr.length === 5) five++;
+lbi=Math.min(100,Math.round(lbi));
 
-        if (score[1]==3 && score[2]==0) s30++;
-        if (score[1]==3 && score[2]==1) s31++;
-        if (score[1]==3 && score[2]==2) s32++;
+let decision='❌ ПРОПУСТИТЬ';
+let cls='bad';
+if(lbi>=70){decision='✅ СТАВИТЬ';cls='good';}
+else if(lbi>=45){decision='⚠️ ОСТОРОЖНО';cls='warn';}
 
-        setArr.forEach(s => {
-            const nums = s.match(/(\d+)\s*:\s*(\d+)/);
-            if (nums) points += Number(nums[1]) + Number(nums[2]);
-        });
-    });
+document.getElementById('output').innerHTML=`
+<div class="row"><span>Индекс перекоса линии</span><b>${lbi}/100</b></div>
 
-    const avgSets = (sets/total).toFixed(2);
-    const avgPoints = (points/total).toFixed(1);
-    const avgSetPoints = (points/sets).toFixed(1);
+<div class="block ${cls}">
+<div class="highlight">⭐ Лучшая ставка</div>
+Тотал ${best.line}<br>
+${best.tb<best.tm?'ТБ':'ТМ'} @ ${Math.min(best.tm,best.tb)}
+</div>
 
-    const p30 = Math.round((s30/total)*100);
-    const p31 = Math.round((s31/total)*100);
-    const p32 = Math.round((s32/total)*100);
-    const p4plus = Math.round(((s31+s32)/total)*100);
-    const p5 = Math.round((five/total)*100);
+<div class="block forecast">
+<div class="highlight">🧠 Логика</div>
+• БК сильно зажал одну сторону<br>
+• Медиана смещена<br>
+• Исход партии симметричен → value в тотале
+</div>
 
-    let profile, confidence, mainBet, altBet, riskyBet, avoid;
-
-    if (avgSets >= 4.2) {
-        profile = 'Длинная лига';
-        mainBet = 'ТБ по сетам (3.5)';
-        altBet = 'ТБ очков';
-        riskyBet = '5 сетов — Да';
-        avoid = 'ТМ сетов, точный счёт';
-        confidence = Math.min(85, 60 + p4plus/2);
-    } else if (avgSets >= 3.7) {
-        profile = 'Сбалансированная';
-        mainBet = 'ТБ 3.5 сетов';
-        altBet = 'Победа 3:1';
-        riskyBet = 'ТБ очков';
-        avoid = 'Победа 3:0';
-        confidence = 65;
-    } else {
-        profile = 'Короткая лига';
-        mainBet = 'Победа 3:0 / 3:1';
-        altBet = 'ТМ сетов (3.5)';
-        riskyBet = 'ТМ очков';
-        avoid = '5 сетов';
-        confidence = Math.min(80, 55 + p30);
-    }
-
-    document.getElementById('output').innerHTML = `
-    <div class="row"><span>Матчей</span><b>${total}</b></div>
-    <div class="row"><span>Среднее сетов</span><b>${avgSets}</b></div>
-    <div class="row"><span>Средний тотал</span><b>${avgPoints}</b></div>
-    <div class="row"><span>Очков в сете</span><b>${avgSetPoints}</b></div>
-
-    <div class="row"><span>3:0</span><b>${p30}%</b></div>
-    <div class="row"><span>3:1</span><b>${p31}%</b></div>
-    <div class="row"><span>3:2</span><b>${p32}%</b></div>
-    <div class="row"><span>4+ сетов</span><b>${p4plus}%</b></div>
-    <div class="row"><span>5 сетов</span><b>${p5}%</b></div>
-
-    <div class="row">
-        <span>Тип линии</span>
-        <span class="tag good">${profile}</span>
-    </div>
-
-    <div class="forecast">
-        ⭐ <b>Прогноз следующей ставки</b><br><br>
-        <b>Основная:</b> ${mainBet}<br>
-        <b>Альтернатива:</b> ${altBet}<br>
-        <b>Агрессивная:</b> ${riskyBet}<br><br>
-        ❌ <b>Избегать:</b> ${avoid}<br><br>
-        📊 <b>Уверенность:</b> ${confidence}%
-    </div>
-    `;
+<div class="block ${cls}">
+<b>Решение:</b> ${decision}
+</div>
+`;
 }
 </script>
 
