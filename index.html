@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TT Analyzer 8.0 — Live Trading System</title>
+<title>TT Analyzer 9.0 — Line Trading Pro</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 :root{
---bg:#08090e;
---card:#141721;
+--bg:#07080d;
+--card:#131622;
 --accent:#2563eb;
 --good:#22c55e;
 --warn:#f59e0b;
@@ -31,7 +31,7 @@ color:var(--text);
 }
 
 .container{
-max-width:440px;
+max-width:460px;
 margin:auto;
 padding:14px;
 }
@@ -53,15 +53,12 @@ margin-bottom:14px;
 background:var(--accent);
 color:#fff;
 padding:14px;
-text-align:center;
 border-radius:12px;
-font-size:16px;
+text-align:center;
 cursor:pointer;
 }
 
-input[type=file]{display:none;}
-
-input[type=number]{
+input,select{
 width:100%;
 padding:12px;
 border-radius:10px;
@@ -112,15 +109,22 @@ cursor:pointer;
 }
 
 .btn-good{background:var(--good);color:#000;}
-.btn-warn{background:var(--warn);color:#000;}
 .btn-bad{background:var(--bad);color:#fff;}
+.btn-warn{background:var(--warn);color:#000;}
+
+canvas{
+width:100%;
+height:180px;
+background:#0b0d15;
+border-radius:12px;
+}
 </style>
 </head>
 
 <body>
 <div class="container">
 
-<h1>🏓 TT Analyzer 8.0</h1>
+<h1>🏓 TT Analyzer 9.0</h1>
 
 <div class="card">
 <label class="upload">
@@ -131,39 +135,39 @@ cursor:pointer;
 
 <div class="card">
 <label>Банк</label>
-<input type="number" id="bank" placeholder="например 1000">
-<label>Риск на сделку (%)</label>
-<input type="number" id="risk" placeholder="например 2">
+<input type="number" id="bank" placeholder="1000">
+<label>Сценарий выхода</label>
+<select id="exit">
+<option>Let It Ride</option>
+<option>Lock Profit</option>
+<option>Min Loss</option>
+<option>Auto Hedge</option>
+</select>
 </div>
 
-<div class="card" id="output">
-Загрузите скриншот
-</div>
+<div class="card" id="output">Ожидание скрина</div>
 
 <div class="card">
-<div class="highlight">📊 Журнал сделок</div>
+<div class="highlight">📒 Журнал сделок</div>
 <div id="log"></div>
 </div>
 
 <div class="card">
-<div class="highlight">📈 ROI-анализ</div>
-<div id="roi"></div>
+<div class="highlight">📈 Equity Curve</div>
+<canvas id="equity"></canvas>
 </div>
 
 </div>
 
 <script>
-let currentTrade=null;
-let trades=JSON.parse(localStorage.getItem('tt_trades')||'[]');
+let trades=JSON.parse(localStorage.getItem('tt9_trades')||'[]');
+let current=null;
 
 renderLog();
-renderROI();
+drawEquity();
 
 function analyze(e){
-Tesseract.recognize(
-e.target.files[0],
-'rus'
-).then(r=>{
+Tesseract.recognize(e.target.files[0],'rus').then(r=>{
 parseLine(r.data.text);
 });
 }
@@ -171,51 +175,56 @@ parseLine(r.data.text);
 function parseLine(text){
 const odds=text.match(/\d\.\d{2}/g);
 if(!odds||odds.length<10){
-document.getElementById('output').innerHTML='❌ Линия не распознана';
+document.getElementById('output').innerHTML='❌ OCR ошибка';
 return;
 }
 
 const nums=odds.map(Number);
 let totals=[
-{line:16.5, tm:nums[2], tb:nums[3]},
-{line:17.5, tm:nums[4], tb:nums[5]},
-{line:18.5, tm:nums[6], tb:nums[7]},
-{line:19.5, tm:nums[8], tb:nums[9]},
-{line:20.5, tm:nums[10], tb:nums[11]}
+{l:16.5,tm:nums[2],tb:nums[3]},
+{l:17.5,tm:nums[4],tb:nums[5]},
+{l:18.5,tm:nums[6],tb:nums[7]},
+{l:19.5,tm:nums[8],tb:nums[9]},
+{l:20.5,tm:nums[10],tb:nums[11]}
 ];
 
-let candidates=[];
+let best=null;
+let edge=0;
+
 totals.forEach(t=>{
 let min=Math.min(t.tm,t.tb);
 let max=Math.max(t.tm,t.tb);
 if(min>=1.70){
-candidates.push({
-line:t.line,
+let e=(max-min)*min;
+if(e>edge){
+edge=e;
+best={
+line:t.l,
 side:t.tm>t.tb?'ТБ':'ТМ',
 odd:min,
-edge:(max-min)*min
-});
+prob:1/max
+};
+}
 }
 });
 
-candidates.sort((a,b)=>b.edge-a.edge);
-if(!candidates.length){
+if(!best){
 document.getElementById('output').innerHTML='❌ Нет value ≥1.70';
 return;
 }
 
-let bet=candidates[0];
 let bank=Number(document.getElementById('bank').value);
-let risk=Number(document.getElementById('risk').value);
-let stake=((bank*risk)/100).toFixed(2);
+let kelly=(best.prob*best.odd-1)/(best.odd-1);
+kelly=Math.max(0,kelly)*0.25;
+let stake=(bank*kelly).toFixed(2);
 
-currentTrade={bet,stake};
+current={best,stake};
 
 document.getElementById('output').innerHTML=`
 <div class="block good">
-<div class="highlight">⭐ Сделка</div>
-${bet.side} ${bet.line} @ ${bet.odd}<br>
-Ставка: ${stake}
+<div class="highlight">⭐ Сделка (Kelly)</div>
+${best.side} ${best.line} @ ${best.odd}<br>
+Kelly stake: ${stake}
 </div>
 
 <button class="btn-good" onclick="closeTrade('win')">✔️ Win</button>
@@ -223,23 +232,23 @@ ${bet.side} ${bet.line} @ ${bet.odd}<br>
 `;
 }
 
-function closeTrade(result){
-let profit=result==='win'
-? currentTrade.stake*(currentTrade.bet.odd-1)
-: -currentTrade.stake;
+function closeTrade(res){
+let profit=res==='win'
+? current.stake*(current.best.odd-1)
+: -current.stake;
 
 trades.push({
 date:new Date().toLocaleString(),
-bet:`${currentTrade.bet.side} ${currentTrade.bet.line}`,
-odd:currentTrade.bet.odd,
-stake:currentTrade.stake,
-profit:profit
+bet:`${current.best.side} ${current.best.line}`,
+odd:current.best.odd,
+stake:Number(current.stake),
+profit
 });
 
-localStorage.setItem('tt_trades',JSON.stringify(trades));
+localStorage.setItem('tt9_trades',JSON.stringify(trades));
 renderLog();
-renderROI();
-document.getElementById('output').innerHTML='Сделка сохранена';
+drawEquity();
+document.getElementById('output').innerHTML='Сделка зафиксирована';
 }
 
 function renderLog(){
@@ -256,22 +265,32 @@ ${t.profit.toFixed(2)}
 });
 }
 
-function renderROI(){
-const el=document.getElementById('roi');
-let total=trades.length;
-let profit=trades.reduce((a,b)=>a+b.profit,0);
-let staked=trades.reduce((a,b)=>a+Number(b.stake),0);
-let roi=staked? (profit/staked*100):0;
+function drawEquity(){
+const c=document.getElementById('equity');
+const ctx=c.getContext('2d');
+ctx.clearRect(0,0,c.width,c.height);
 
-el.innerHTML=`
-<div class="row"><span>Сделок</span><b>${total}</b></div>
-<div class="row"><span>Профит</span><b>${profit.toFixed(2)}</b></div>
-<div class="row"><span>ROI</span><b>${roi.toFixed(1)}%</b></div>
-`;
+let equity=[0];
+trades.forEach(t=>equity.push(equity[equity.length-1]+t.profit));
+
+let max=Math.max(...equity);
+let min=Math.min(...equity);
+let range=max-min||1;
+
+ctx.strokeStyle='#22c55e';
+ctx.beginPath();
+equity.forEach((v,i)=>{
+let x=i*(c.width/(equity.length-1||1));
+let y=c.height-((v-min)/range*c.height);
+if(i===0)ctx.moveTo(x,y);
+else ctx.lineTo(x,y);
+});
+ctx.stroke();
 }
 </script>
 
 </body>
 </html>
+
 
 
