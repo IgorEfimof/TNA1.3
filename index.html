@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TT Analyzer 10.0 — Live Trading Terminal</title>
+<title>TT Analyzer 8.0 — Live Trading System</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 :root{
---bg:#06070c;
---card:#121522;
+--bg:#08090e;
+--card:#141721;
 --accent:#2563eb;
 --good:#22c55e;
 --warn:#f59e0b;
@@ -31,7 +31,7 @@ color:var(--text);
 }
 
 .container{
-max-width:480px;
+max-width:440px;
 margin:auto;
 padding:14px;
 }
@@ -53,12 +53,15 @@ margin-bottom:14px;
 background:var(--accent);
 color:#fff;
 padding:14px;
-border-radius:12px;
 text-align:center;
+border-radius:12px;
+font-size:16px;
 cursor:pointer;
 }
 
-input,select{
+input[type=file]{display:none;}
+
+input[type=number]{
 width:100%;
 padding:12px;
 border-radius:10px;
@@ -109,143 +112,165 @@ cursor:pointer;
 }
 
 .btn-good{background:var(--good);color:#000;}
+.btn-warn{background:var(--warn);color:#000;}
 .btn-bad{background:var(--bad);color:#fff;}
-
-.alert{
-animation:flash 1s infinite;
-}
-
-@keyframes flash{
-0%{background:#22c55e;}
-50%{background:#16a34a;}
-100%{background:#22c55e;}
-}
 </style>
 </head>
 
 <body>
 <div class="container">
 
-<h1>🏓 TT Analyzer 10.0</h1>
+<h1>🏓 TT Analyzer 8.0</h1>
 
 <div class="card">
 <label class="upload">
-📸 Добавить матч (LIVE линия)
+📸 Загрузить LIVE-линию
 <input type="file" accept="image/*" onchange="analyze(event)">
 </label>
 </div>
 
 <div class="card">
 <label>Банк</label>
-<input type="number" id="bank" value="1000">
+<input type="number" id="bank" placeholder="например 1000">
+<label>Риск на сделку (%)</label>
+<input type="number" id="risk" placeholder="например 2">
 </div>
 
 <div class="card" id="output">
-Ожидание данных
+Загрузите скриншот
 </div>
 
 <div class="card">
-<div class="highlight">📒 Multi-Match Log</div>
+<div class="highlight">📊 Журнал сделок</div>
 <div id="log"></div>
+</div>
+
+<div class="card">
+<div class="highlight">📈 ROI-анализ</div>
+<div id="roi"></div>
 </div>
 
 </div>
 
 <script>
-let matches=[];
-let lastLine=null;
+let currentTrade=null;
+let trades=JSON.parse(localStorage.getItem('tt_trades')||'[]');
+
+renderLog();
+renderROI();
 
 function analyze(e){
-Tesseract.recognize(e.target.files[0],'rus').then(r=>{
-processLine(r.data.text);
+Tesseract.recognize(
+e.target.files[0],
+'rus'
+).then(r=>{
+parseLine(r.data.text);
 });
 }
 
-function processLine(text){
+function parseLine(text){
 const odds=text.match(/\d\.\d{2}/g);
 if(!odds||odds.length<10){
-document.getElementById('output').innerHTML='❌ OCR ошибка';
+document.getElementById('output').innerHTML='❌ Линия не распознана';
 return;
 }
 
 const nums=odds.map(Number);
 let totals=[
-{l:16.5,tm:nums[2],tb:nums[3]},
-{l:17.5,tm:nums[4],tb:nums[5]},
-{l:18.5,tm:nums[6],tb:nums[7]},
-{l:19.5,tm:nums[8],tb:nums[9]},
-{l:20.5,tm:nums[10],tb:nums[11]}
+{line:16.5, tm:nums[2], tb:nums[3]},
+{line:17.5, tm:nums[4], tb:nums[5]},
+{line:18.5, tm:nums[6], tb:nums[7]},
+{line:19.5, tm:nums[8], tb:nums[9]},
+{line:20.5, tm:nums[10], tb:nums[11]}
 ];
 
-let best=null;
-let momentum=0;
-
+let candidates=[];
 totals.forEach(t=>{
 let min=Math.min(t.tm,t.tb);
 let max=Math.max(t.tm,t.tb);
 if(min>=1.70){
-let edge=(max-min)*min;
-if(!best||edge>best.edge){
-best={
-line:t.l,
+candidates.push({
+line:t.line,
 side:t.tm>t.tb?'ТБ':'ТМ',
 odd:min,
-edge
-};
-}
+edge:(max-min)*min
+});
 }
 });
 
-if(lastLine){
-momentum=best.edge-lastLine.edge;
+candidates.sort((a,b)=>b.edge-a.edge);
+if(!candidates.length){
+document.getElementById('output').innerHTML='❌ Нет value ≥1.70';
+return;
 }
-lastLine=best;
 
-let variance=best.edge<0.5?'HIGH':best.edge<1?'MEDIUM':'LOW';
-
+let bet=candidates[0];
 let bank=Number(document.getElementById('bank').value);
-let prob=1/(best.odd+0.05);
-let kelly=(prob*best.odd-1)/(best.odd-1);
-let stake=Math.max(0,kelly*0.25*bank).toFixed(2);
+let risk=Number(document.getElementById('risk').value);
+let stake=((bank*risk)/100).toFixed(2);
 
-let alert=stake>0 && momentum>0;
+currentTrade={bet,stake};
 
 document.getElementById('output').innerHTML=`
-<div class="block ${alert?'good alert':'good'}">
-<div class="highlight">⭐ LIVE SETUP</div>
-${best.side} ${best.line} @ ${best.odd}<br>
-Stake (Kelly): ${stake}<br>
-Momentum: ${momentum.toFixed(2)}<br>
-Variance: ${variance}
+<div class="block good">
+<div class="highlight">⭐ Сделка</div>
+${bet.side} ${bet.line} @ ${bet.odd}<br>
+Ставка: ${stake}
 </div>
 
-${alert?'<button class="btn-good">🔔 ENTRY ALERT</button>':''}
+<button class="btn-good" onclick="closeTrade('win')">✔️ Win</button>
+<button class="btn-bad" onclick="closeTrade('lose')">❌ Lose</button>
 `;
+}
 
-matches.push({
-time:new Date().toLocaleTimeString(),
-bet:`${best.side} ${best.line}`,
-odd:best.odd,
-stake,
-momentum,
-variance
+function closeTrade(result){
+let profit=result==='win'
+? currentTrade.stake*(currentTrade.bet.odd-1)
+: -currentTrade.stake;
+
+trades.push({
+date:new Date().toLocaleString(),
+bet:`${currentTrade.bet.side} ${currentTrade.bet.line}`,
+odd:currentTrade.bet.odd,
+stake:currentTrade.stake,
+profit:profit
 });
 
+localStorage.setItem('tt_trades',JSON.stringify(trades));
 renderLog();
+renderROI();
+document.getElementById('output').innerHTML='Сделка сохранена';
 }
 
 function renderLog(){
 const el=document.getElementById('log');
 el.innerHTML='';
-matches.slice().reverse().forEach(m=>{
+trades.slice().reverse().forEach(t=>{
 el.innerHTML+=`
 <div class="row">
-<span>${m.time} — ${m.bet}</span>
-<b>${m.odd}</b>
+<span>${t.bet} @ ${t.odd}</span>
+<b style="color:${t.profit>=0?'#22c55e':'#ef4444'}">
+${t.profit.toFixed(2)}
+</b>
 </div>`;
 });
+}
+
+function renderROI(){
+const el=document.getElementById('roi');
+let total=trades.length;
+let profit=trades.reduce((a,b)=>a+b.profit,0);
+let staked=trades.reduce((a,b)=>a+Number(b.stake),0);
+let roi=staked? (profit/staked*100):0;
+
+el.innerHTML=`
+<div class="row"><span>Сделок</span><b>${total}</b></div>
+<div class="row"><span>Профит</span><b>${profit.toFixed(2)}</b></div>
+<div class="row"><span>ROI</span><b>${roi.toFixed(1)}%</b></div>
+`;
 }
 </script>
 
 </body>
 </html>
+
