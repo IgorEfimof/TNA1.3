@@ -3,10 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TT Live Analyzer — Ultimate</title>
+<title>TT Live Analyzer — Early Set</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <style>
 :root{
@@ -25,9 +24,23 @@ box-sizing:border-box;
 font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif;
 }
 
-body{margin:0;background:var(--bg);color:var(--text);}
-.container{max-width:460px;margin:auto;padding:14px;}
-h1{text-align:center;font-size:22px;margin-bottom:12px;}
+body{
+margin:0;
+background:var(--bg);
+color:var(--text);
+}
+
+.container{
+max-width:460px;
+margin:auto;
+padding:14px;
+}
+
+h1{
+text-align:center;
+font-size:22px;
+margin-bottom:12px;
+}
 
 .card{
 background:var(--card);
@@ -55,32 +68,36 @@ padding:6px 0;
 border-bottom:1px solid #222;
 font-size:14px;
 }
+
 .row:last-child{border:none;}
 
-.block{margin-top:12px;padding:14px;border-radius:12px;}
+.block{
+margin-top:12px;
+padding:14px;
+border-radius:12px;
+}
+
 .good{background:rgba(34,197,94,.15);}
 .warn{background:rgba(245,158,11,.15);}
 .bad{background:rgba(239,68,68,.15);}
 
-.highlight{font-size:16px;font-weight:600;margin-bottom:6px;}
-.small{font-size:13px;color:var(--muted);}
-.decision{font-size:20px;font-weight:700;text-align:center;margin-top:10px;}
-
-button{
-width:100%;
-padding:12px;
-border-radius:10px;
-border:none;
-margin-top:8px;
-font-size:15px;
-cursor:pointer;
+.highlight{
+font-size:16px;
+font-weight:600;
+margin-bottom:6px;
 }
-.btn-good{background:var(--good);color:#000;}
-.btn-bad{background:var(--bad);color:#fff;}
-.btn-warn{background:var(--warn);color:#000;}
-.btn-accent{background:var(--accent);color:#fff;}
 
-canvas{width:100%!important;height:220px!important;}
+.small{
+font-size:13px;
+color:var(--muted);
+}
+
+.decision{
+font-size:20px;
+font-weight:700;
+text-align:center;
+margin-top:10px;
+}
 </style>
 </head>
 
@@ -97,42 +114,24 @@ canvas{width:100%!important;height:220px!important;}
 <div class="small" id="status"></div>
 </div>
 
-<div class="card" id="output">Ожидание скриншота</div>
-
-<div class="card">
-<div class="highlight">📒 Журнал сделок</div>
-<div id="tradeLog"></div>
-
-<button class="btn-accent" onclick="exportCSV()">📤 Экспорт в Excel</button>
-<button class="btn-bad" onclick="clearLog()">🗑 Очистить журнал</button>
-</div>
-
-<div class="card">
-<div class="highlight">📈 Equity</div>
-<canvas id="equity"></canvas>
-</div>
-
-<div class="card">
-<div class="highlight">📊 ROI</div>
-<div id="roi"></div>
+<div class="card" id="output">
+Ожидание скриншота
 </div>
 
 </div>
 
 <script>
-let trades = JSON.parse(localStorage.getItem('tt_trades') || '[]');
-let currentBet = null;
-let chart;
-
-renderLog(); renderROI(); renderEquity();
-
 function analyze(e){
 const status=document.getElementById('status');
 status.innerText='Сканирование...';
 
-Tesseract.recognize(e.target.files[0],'rus',{
-logger:m=>{if(m.progress)status.innerText='OCR '+Math.round(m.progress*100)+'%';}
-}).then(r=>{
+Tesseract.recognize(
+e.target.files[0],
+'rus',
+{logger:m=>{
+if(m.progress) status.innerText='OCR '+Math.round(m.progress*100)+'%';
+}}
+).then(r=>{
 status.innerText='Готово';
 processText(r.data.text);
 });
@@ -140,115 +139,135 @@ processText(r.data.text);
 
 function processText(text){
 const odds=text.match(/\d\.\d{2}/g);
-if(!odds||odds.length<10){
-document.getElementById('output').innerHTML='<div class="block bad">❌ Линия не распознана</div>';return;
+if(!odds || odds.length < 10){
+document.getElementById('output').innerHTML=
+'<div class="block bad">❌ Не удалось распознать линию</div>';
+return;
 }
 
 const nums=odds.map(Number);
+
+// предполагаем стандартную сетку тоталов
 let totals=[
-{l:16.5,a:nums[2],b:nums[3]},
-{l:17.5,a:nums[4],b:nums[5]},
-{l:18.5,a:nums[6],b:nums[7]},
-{l:19.5,a:nums[8],b:nums[9]},
-{l:20.5,a:nums[10],b:nums[11]}
+{line:16.5, tm:nums[2], tb:nums[3]},
+{line:17.5, tm:nums[4], tb:nums[5]},
+{line:18.5, tm:nums[6], tb:nums[7]},
+{line:19.5, tm:nums[8], tb:nums[9]},
+{line:20.5, tm:nums[10],tb:nums[11]}
 ];
 
-let best=null,edge=0,lbi=0,rows='';
+// анализ реакции рынка
+let analysis=[];
+let best=null;
+let maxEdge=0;
+let lbi=0;
+
 totals.forEach(t=>{
-let min=Math.min(t.a,t.b),max=Math.max(t.a,t.b);
-let diff=max-min;lbi+=diff*10;
-let side=t.a>t.b?'ТБ':'ТМ';
+let min=Math.min(t.tm,t.tb);
+let max=Math.max(t.tm,t.tb);
+let diff=max-min;
+
+lbi+=diff*10;
+
+let side=t.tm>t.tb?'ТБ':'ТМ';
+
 if(min>=1.70){
-let prob=1/max,val=(prob*min)-1;
-rows+=`<div class="row"><span>${side} ${t.l}</span><b>${min.toFixed(2)} | Δ ${diff.toFixed(2)}</b></div>`;
-if(val>edge){edge=val;best={side,line:t.l,odd:min,prob,val};}
+let prob=1/max;
+let value=(prob*min)-1;
+
+analysis.push({
+line:t.line,
+side,
+odd:min,
+diff:diff.toFixed(2),
+value:value.toFixed(3)
+});
+
+if(value>maxEdge){
+maxEdge=value;
+best={
+line:t.line,
+side,
+odd:min,
+prob,
+value
+};
+}
 }
 });
-lbi=Math.min(100,Math.round(lbi));
-let variance=lbi>70?'LOW':lbi>45?'MEDIUM':'HIGH';
-let kelly=best?((best.prob*best.odd-1)/(best.odd-1))*0.25:0;
-currentBet=best;
 
-document.getElementById('output').innerHTML=`
-<div class="row"><span>Индекс перекоса</span><b>${lbi}/100</b></div>
+lbi=Math.min(100,Math.round(lbi));
+
+// дисперсия после 1-й партии
+let variance='HIGH';
+if(lbi>70) variance='LOW';
+else if(lbi>45) variance='MEDIUM';
+
+// Kelly (консервативный)
+let kelly=best ? ((best.prob*best.odd-1)/(best.odd-1))*0.25 : 0;
+kelly=Math.max(0,kelly);
+
+let decision='❌ ПРОПУСТИТЬ';
+let cls='bad';
+
+if(best && best.value>0 && variance!=='HIGH'){
+decision='✅ СТАВИТЬ';
+cls='good';
+} else if(best && best.value>0){
+decision='⚠️ ОСТОРОЖНО';
+cls='warn';
+}
+
+let html=`
+<div class="row"><span>Индекс перекоса линии</span><b>${lbi}/100</b></div>
 <div class="row"><span>Дисперсия</span><b>${variance}</b></div>
-<div class="block"><div class="highlight">Тоталы</div>${rows}</div>
-${best?`
+
+<div class="block">
+<div class="highlight">🔍 Распознанные тоталы</div>
+${analysis.map(a=>`
+<div class="row">
+<span>${a.side} ${a.line}</span>
+<b>${a.odd} | Δ ${a.diff}</b>
+</div>
+`).join('')}
+</div>
+`;
+
+if(best){
+html+=`
 <div class="block good">
-<div class="highlight">⭐ Ставка</div>
-${best.side} ${best.line} @ ${best.odd.toFixed(2)}<br>
-Value: ${best.val.toFixed(3)}<br>
-Kelly (¼): ${(kelly*100).toFixed(2)}%
-<button class="btn-good" onclick="addTrade()">➕ Добавить</button>
-</div>`:`<div class="block bad">Value не найдено</div>`}
+<div class="highlight">⭐ Основная идея</div>
+${best.side} ${best.line} @ ${best.odd}<br>
+Value: ${best.value.toFixed(3)}<br>
+Kelly (¼): ${(kelly*100).toFixed(2)}% банка
+</div>
+`;
+} else {
+html+=`
+<div class="block bad">
+<div class="highlight">❌ Value не найдено</div>
+Коэффициенты ≥1.70 отсутствуют
+</div>
 `;
 }
 
-function addTrade(){
-trades.push({date:new Date().toLocaleString(),bet:`${currentBet.side} ${currentBet.line}`,odd:currentBet.odd,result:null,profit:0});
-save();renderLog();renderROI();renderEquity();
-}
+html+=`
+<div class="block bad">
+<div class="highlight">🚫 Исключено</div>
+Коэффициенты ниже 1.70<br>
+Реактивные ловушки после 1-й партии
+</div>
 
-function setResult(i,r){
-trades[i].result=r;
-trades[i].profit=r==='win'?trades[i].odd-1:-1;
-save();renderLog();renderROI();renderEquity();
-}
+<div class="block ${cls}">
+<div class="decision">${decision}</div>
+<div class="small">
+LIVE после 1-й партии — высокий риск, работаем выборочно
+</div>
+</div>
+`;
 
-function renderLog(){
-const el=document.getElementById('tradeLog');el.innerHTML='';
-trades.slice().reverse().forEach((t,i)=>{
-let idx=trades.length-1-i;
-el.innerHTML+=`
-<div class="row">
-<span>${t.bet} @ ${t.odd.toFixed(2)}</span>
-${t.result?`<b style="color:${t.profit>0?'#22c55e':'#ef4444'}">${t.profit.toFixed(2)}</b>`:
-`<span>
-<button class="btn-good" onclick="setResult(${idx},'win')">Win</button>
-<button class="btn-bad" onclick="setResult(${idx},'lose')">Lose</button>
-</span>`}
-</div>`;
-});
+document.getElementById('output').innerHTML=html;
 }
-
-function renderROI(){
-let done=trades.filter(t=>t.result).length;
-let profit=trades.reduce((a,b)=>a+b.profit,0);
-document.getElementById('roi').innerHTML=`
-<div class="row"><span>Сделок</span><b>${done}</b></div>
-<div class="row"><span>Профит</span><b>${profit.toFixed(2)}</b></div>
-<div class="row"><span>ROI</span><b>${done?(profit/done*100).toFixed(1):0}%</b></div>`;
-}
-
-function renderEquity(){
-const ctx=document.getElementById('equity');
-let eq=0,data=[];
-trades.forEach(t=>{if(t.result){eq+=t.profit;data.push(eq);}});
-if(chart)chart.destroy();
-chart=new Chart(ctx,{type:'line',data:{labels:data.map((_,i)=>i+1),
-datasets:[{data,fill:false,borderWidth:2}]},
-options:{plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{color:'#9ca3af'}}}});
-}
-
-function exportCSV(){
-let csv='Date,Bet,Odd,Result,Profit\n';
-trades.forEach(t=>{
-csv+=`${t.date},${t.bet},${t.odd},${t.result||''},${t.profit}\n`;
-});
-let blob=new Blob([csv],{type:'text/csv'});
-let a=document.createElement('a');
-a.href=URL.createObjectURL(blob);
-a.download='tt_trades.csv';
-a.click();
-}
-
-function clearLog(){
-if(confirm('Очистить журнал сделок?')){
-trades=[];save();renderLog();renderROI();renderEquity();
-}
-}
-
-function save(){localStorage.setItem('tt_trades',JSON.stringify(trades));}
 </script>
 
 </body>
