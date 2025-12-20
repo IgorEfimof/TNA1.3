@@ -3,18 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/icon231.png">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TNA12">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>TT Live Analyzer — Early Set</title>
+<title>TT Analyzer 7.0 — Professional Line Trader</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 :root{
---bg:#05060b;
---card:#121526;
+--bg:#090a0f;
+--card:#151821;
 --accent:#2563eb;
 --good:#22c55e;
 --warn:#f59e0b;
@@ -35,7 +31,7 @@ color:var(--text);
 }
 
 .container{
-max-width:460px;
+max-width:430px;
 margin:auto;
 padding:14px;
 }
@@ -57,13 +53,20 @@ margin-bottom:14px;
 background:var(--accent);
 color:#fff;
 padding:14px;
-border-radius:12px;
 text-align:center;
+border-radius:12px;
 font-size:16px;
 cursor:pointer;
 }
 
 input[type=file]{display:none;}
+
+.status{
+text-align:center;
+font-size:13px;
+color:var(--muted);
+margin-top:6px;
+}
 
 .row{
 display:flex;
@@ -81,26 +84,14 @@ padding:14px;
 border-radius:12px;
 }
 
-.good{background:rgba(34,197,94,.15);}
-.warn{background:rgba(245,158,11,.15);}
-.bad{background:rgba(239,68,68,.15);}
+.good{background:rgba(34,197,94,.12);}
+.warn{background:rgba(245,158,11,.12);}
+.bad{background:rgba(239,68,68,.12);}
 
 .highlight{
 font-size:16px;
 font-weight:600;
 margin-bottom:6px;
-}
-
-.small{
-font-size:13px;
-color:var(--muted);
-}
-
-.decision{
-font-size:20px;
-font-weight:700;
-text-align:center;
-margin-top:10px;
 }
 </style>
 </head>
@@ -108,18 +99,18 @@ margin-top:10px;
 <body>
 <div class="container">
 
-<h1>🏓 TT Live Analyzer</h1>
+<h1>🏓 TT Analyzer 7.0</h1>
 
 <div class="card">
 <label class="upload">
-📸 Загрузить скрин LIVE (после 1-й партии)
+📸 Загрузить LIVE-скрин 5-й партии
 <input type="file" accept="image/*" onchange="analyze(event)">
 </label>
-<div class="small" id="status"></div>
+<div class="status" id="status"></div>
 </div>
 
 <div class="card" id="output">
-Ожидание скриншота
+Загрузите скриншот линии
 </div>
 
 </div>
@@ -127,150 +118,112 @@ margin-top:10px;
 <script>
 function analyze(e){
 const status=document.getElementById('status');
-status.innerText='Сканирование...';
+status.innerText='⏳ OCR...';
 
 Tesseract.recognize(
 e.target.files[0],
 'rus',
-{logger:m=>{
-if(m.progress) status.innerText='OCR '+Math.round(m.progress*100)+'%';
-}}
+{logger:m=>status.innerText=`⏳ ${Math.round(m.progress*100)}%`}
 ).then(r=>{
-status.innerText='Готово';
-processText(r.data.text);
+status.innerText='✅ OCR завершён';
+parseLine(r.data.text);
 });
 }
 
-function processText(text){
+function parseLine(text){
 const odds=text.match(/\d\.\d{2}/g);
-if(!odds || odds.length < 10){
+if(!odds||odds.length<10){
 document.getElementById('output').innerHTML=
-'<div class="block bad">❌ Не удалось распознать линию</div>';
+'<div class="bad">❌ Линия не распознана</div>';
 return;
 }
 
 const nums=odds.map(Number);
 
-// предполагаем стандартную сетку тоталов
+// парсим тоталы (как на скрине БК)
 let totals=[
 {line:16.5, tm:nums[2], tb:nums[3]},
 {line:17.5, tm:nums[4], tb:nums[5]},
 {line:18.5, tm:nums[6], tb:nums[7]},
 {line:19.5, tm:nums[8], tb:nums[9]},
-{line:20.5, tm:nums[10],tb:nums[11]}
+{line:20.5, tm:nums[10], tb:nums[11]}
 ];
 
-// анализ реакции рынка
-let analysis=[];
-let best=null;
-let maxEdge=0;
+let candidates=[];
 let lbi=0;
 
 totals.forEach(t=>{
-let min=Math.min(t.tm,t.tb);
-let max=Math.max(t.tm,t.tb);
-let diff=max-min;
+let minOdd=Math.min(t.tm,t.tb);
+let maxOdd=Math.max(t.tm,t.tb);
+let diff=maxOdd-minOdd;
 
-lbi+=diff*10;
+lbi+=diff*12;
 
-let side=t.tm>t.tb?'ТБ':'ТМ';
-
-if(min>=1.70){
-let prob=1/max;
-let value=(prob*min)-1;
-
-analysis.push({
+if(minOdd>=1.70){
+candidates.push({
 line:t.line,
-side,
-odd:min,
-diff:diff.toFixed(2),
-value:value.toFixed(3)
+side:t.tm>t.tb?'ТБ':'ТМ',
+odd:minOdd,
+score:diff*minOdd
 });
-
-if(value>maxEdge){
-maxEdge=value;
-best={
-line:t.line,
-side,
-odd:min,
-prob,
-value
-};
-}
 }
 });
 
 lbi=Math.min(100,Math.round(lbi));
 
-// дисперсия после 1-й партии
-let variance='HIGH';
-if(lbi>70) variance='LOW';
-else if(lbi>45) variance='MEDIUM';
+candidates.sort((a,b)=>b.score-a.score);
 
-// Kelly (консервативный)
-let kelly=best ? ((best.prob*best.odd-1)/(best.odd-1))*0.25 : 0;
-kelly=Math.max(0,kelly);
+let best=candidates[0];
+let second=candidates[1];
 
 let decision='❌ ПРОПУСТИТЬ';
 let cls='bad';
 
-if(best && best.value>0 && variance!=='HIGH'){
+if(best && lbi>=60){
 decision='✅ СТАВИТЬ';
 cls='good';
-} else if(best && best.value>0){
+}else if(best){
 decision='⚠️ ОСТОРОЖНО';
 cls='warn';
 }
 
-let html=`
+document.getElementById('output').innerHTML=`
 <div class="row"><span>Индекс перекоса линии</span><b>${lbi}/100</b></div>
-<div class="row"><span>Дисперсия</span><b>${variance}</b></div>
 
-<div class="block">
-<div class="highlight">🔍 Распознанные тоталы</div>
-${analysis.map(a=>`
-<div class="row">
-<span>${a.side} ${a.line}</span>
-<b>${a.odd} | Δ ${a.diff}</b>
-</div>
-`).join('')}
-</div>
-`;
-
-if(best){
-html+=`
+${best ? `
 <div class="block good">
-<div class="highlight">⭐ Основная идея</div>
-${best.side} ${best.line} @ ${best.odd}<br>
-Value: ${best.value.toFixed(3)}<br>
-Kelly (¼): ${(kelly*100).toFixed(2)}% банка
-</div>
-`;
-} else {
-html+=`
+<div class="highlight">⭐ Основная ставка</div>
+${best.side} ${best.line} @ ${best.odd}
+</div>` : `
 <div class="block bad">
-<div class="highlight">❌ Value не найдено</div>
-Коэффициенты ≥1.70 отсутствуют
-</div>
-`;
-}
+<div class="highlight">❌ Подходящих ставок нет</div>
+Все value ниже 1.70
+</div>`}
 
-html+=`
+${second ? `
+<div class="block warn">
+<div class="highlight">⭐ Альтернатива</div>
+${second.side} ${second.line} @ ${second.odd}
+</div>` : ''}
+
 <div class="block bad">
-<div class="highlight">🚫 Исключено</div>
+<div class="highlight">❌ Исключено</div>
 Коэффициенты ниже 1.70<br>
-Реактивные ловушки после 1-й партии
+Ложные фавориты (1.10–1.30)
 </div>
 
 <div class="block ${cls}">
-<div class="decision">${decision}</div>
-<div class="small">
-LIVE после 1-й партии — высокий риск, работаем выборочно
+<div class="highlight">🚦 Финальное решение</div>
+${decision}
 </div>
+
+<div class="block">
+<div class="highlight">🧠 Логика</div>
+• Анализ перекоса тоталов<br>
+• Отсечение минусовых кэфов<br>
+• Фокус на масштабируемом value
 </div>
 `;
-
-document.getElementById('output').innerHTML=html;
 }
 </script>
 
