@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TT Live Analyzer — Early Set</title>
+<title>TT Live Analyzer — Early Set (Final)</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
@@ -98,6 +98,20 @@ font-weight:700;
 text-align:center;
 margin-top:10px;
 }
+
+button{
+width:100%;
+padding:12px;
+border-radius:10px;
+border:none;
+margin-top:8px;
+font-size:15px;
+cursor:pointer;
+}
+
+.btn-good{background:var(--good);color:#000;}
+.btn-bad{background:var(--bad);color:#fff;}
+.btn-warn{background:var(--warn);color:#000;}
 </style>
 </head>
 
@@ -118,9 +132,25 @@ margin-top:10px;
 Ожидание скриншота
 </div>
 
+<div class="card">
+<div class="highlight">📒 Журнал сделок</div>
+<div id="tradeLog"></div>
+</div>
+
+<div class="card">
+<div class="highlight">📈 ROI</div>
+<div id="roi"></div>
+</div>
+
 </div>
 
 <script>
+let trades = JSON.parse(localStorage.getItem('tt_trades') || '[]');
+let currentBet = null;
+
+renderLog();
+renderROI();
+
 function analyze(e){
 const status=document.getElementById('status');
 status.innerText='Сканирование...';
@@ -147,7 +177,6 @@ return;
 
 const nums=odds.map(Number);
 
-// предполагаем стандартную сетку тоталов
 let totals=[
 {line:16.5, tm:nums[2], tb:nums[3]},
 {line:17.5, tm:nums[4], tb:nums[5]},
@@ -156,17 +185,15 @@ let totals=[
 {line:20.5, tm:nums[10],tb:nums[11]}
 ];
 
-// анализ реакции рынка
-let analysis=[];
 let best=null;
-let maxEdge=0;
+let maxValue=0;
 let lbi=0;
+let rows='';
 
 totals.forEach(t=>{
 let min=Math.min(t.tm,t.tb);
 let max=Math.max(t.tm,t.tb);
 let diff=max-min;
-
 lbi+=diff*10;
 
 let side=t.tm>t.tb?'ТБ':'ТМ';
@@ -174,38 +201,29 @@ let side=t.tm>t.tb?'ТБ':'ТМ';
 if(min>=1.70){
 let prob=1/max;
 let value=(prob*min)-1;
-
-analysis.push({
-line:t.line,
-side,
-odd:min,
-diff:diff.toFixed(2),
-value:value.toFixed(3)
-});
-
-if(value>maxEdge){
-maxEdge=value;
-best={
-line:t.line,
-side,
-odd:min,
-prob,
-value
-};
+rows+=`
+<div class="row">
+<span>${side} ${t.line}</span>
+<b>${min.toFixed(2)} | Δ ${diff.toFixed(2)}</b>
+</div>
+`;
+if(value>maxValue){
+maxValue=value;
+best={side,line:t.line,odd:min,prob,value};
 }
 }
 });
 
 lbi=Math.min(100,Math.round(lbi));
 
-// дисперсия после 1-й партии
 let variance='HIGH';
 if(lbi>70) variance='LOW';
 else if(lbi>45) variance='MEDIUM';
 
-// Kelly (консервативный)
 let kelly=best ? ((best.prob*best.odd-1)/(best.odd-1))*0.25 : 0;
 kelly=Math.max(0,kelly);
+
+currentBet = best;
 
 let decision='❌ ПРОПУСТИТЬ';
 let cls='bad';
@@ -213,62 +231,94 @@ let cls='bad';
 if(best && best.value>0 && variance!=='HIGH'){
 decision='✅ СТАВИТЬ';
 cls='good';
-} else if(best && best.value>0){
+}else if(best && best.value>0){
 decision='⚠️ ОСТОРОЖНО';
 cls='warn';
 }
 
-let html=`
-<div class="row"><span>Индекс перекоса линии</span><b>${lbi}/100</b></div>
+document.getElementById('output').innerHTML=`
+<div class="row"><span>Индекс перекоса</span><b>${lbi}/100</b></div>
 <div class="row"><span>Дисперсия</span><b>${variance}</b></div>
 
 <div class="block">
 <div class="highlight">🔍 Распознанные тоталы</div>
-${analysis.map(a=>`
-<div class="row">
-<span>${a.side} ${a.line}</span>
-<b>${a.odd} | Δ ${a.diff}</b>
+${rows}
 </div>
-`).join('')}
-</div>
-`;
 
-if(best){
-html+=`
+${best?`
 <div class="block good">
 <div class="highlight">⭐ Основная идея</div>
-${best.side} ${best.line} @ ${best.odd}<br>
+${best.side} ${best.line} @ ${best.odd.toFixed(2)}<br>
 Value: ${best.value.toFixed(3)}<br>
 Kelly (¼): ${(kelly*100).toFixed(2)}% банка
+<button class="btn-good" onclick="addTrade()">➕ Добавить сделку</button>
 </div>
-`;
-} else {
-html+=`
-<div class="block bad">
-<div class="highlight">❌ Value не найдено</div>
-Коэффициенты ≥1.70 отсутствуют
+`:
+'<div class="block bad">Value не найдено</div>'}
+
+<div class="block ${cls}">
+<div class="decision">${decision}</div>
 </div>
 `;
 }
 
-html+=`
-<div class="block bad">
-<div class="highlight">🚫 Исключено</div>
-Коэффициенты ниже 1.70<br>
-Реактивные ловушки после 1-й партии
-</div>
+function addTrade(){
+if(!currentBet) return;
+trades.push({
+date:new Date().toLocaleString(),
+bet:`${currentBet.side} ${currentBet.line}`,
+odd:currentBet.odd,
+result:null,
+profit:0
+});
+save();
+renderLog();
+renderROI();
+}
 
-<div class="block ${cls}">
-<div class="decision">${decision}</div>
-<div class="small">
-LIVE после 1-й партии — высокий риск, работаем выборочно
-</div>
-</div>
+function setResult(i,res){
+let t=trades[i];
+t.result=res;
+t.profit=res==='win' ? (t.odd-1) : -1;
+save();
+renderLog();
+renderROI();
+}
+
+function renderLog(){
+const el=document.getElementById('tradeLog');
+el.innerHTML='';
+trades.slice().reverse().forEach((t,i)=>{
+el.innerHTML+=`
+<div class="row">
+<span>${t.bet} @ ${t.odd.toFixed(2)}</span>
+${t.result?
+`<b style="color:${t.profit>0?'#22c55e':'#ef4444'}">${t.profit.toFixed(2)}</b>`:
+`<span>
+<button class="btn-good" onclick="setResult(${trades.length-1-i},'win')">Win</button>
+<button class="btn-bad" onclick="setResult(${trades.length-1-i},'lose')">Lose</button>
+</span>`}
+</div>`;
+});
+}
+
+function renderROI(){
+const el=document.getElementById('roi');
+let total=trades.filter(t=>t.result).length;
+let profit=trades.reduce((a,b)=>a+b.profit,0);
+let roi=total? (profit/total*100):0;
+el.innerHTML=`
+<div class="row"><span>Сделок</span><b>${total}</b></div>
+<div class="row"><span>Профит</span><b>${profit.toFixed(2)}</b></div>
+<div class="row"><span>ROI</span><b>${roi.toFixed(1)}%</b></div>
 `;
+}
 
-document.getElementById('output').innerHTML=html;
+function save(){
+localStorage.setItem('tt_trades',JSON.stringify(trades));
 }
 </script>
 
 </body>
 </html>
+
