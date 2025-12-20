@@ -3,18 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/icon231.png">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TNA10">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>TT Live Analyzer — Early Set (Final)</title>
+<title>TT Analyzer 9.0 — Line Trading Pro</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 :root{
---bg:#05060b;
---card:#121526;
+--bg:#07080d;
+--card:#131622;
 --accent:#2563eb;
 --good:#22c55e;
 --warn:#f59e0b;
@@ -43,7 +39,7 @@ padding:14px;
 h1{
 text-align:center;
 font-size:22px;
-margin-bottom:12px;
+margin-bottom:10px;
 }
 
 .card{
@@ -59,11 +55,22 @@ color:#fff;
 padding:14px;
 border-radius:12px;
 text-align:center;
-font-size:16px;
 cursor:pointer;
 }
 
-input[type=file]{display:none;}
+input,select{
+width:100%;
+padding:12px;
+border-radius:10px;
+border:none;
+margin-top:6px;
+font-size:15px;
+}
+
+label{
+font-size:13px;
+color:var(--muted);
+}
 
 .row{
 display:flex;
@@ -81,26 +88,14 @@ padding:14px;
 border-radius:12px;
 }
 
-.good{background:rgba(34,197,94,.15);}
-.warn{background:rgba(245,158,11,.15);}
-.bad{background:rgba(239,68,68,.15);}
+.good{background:rgba(34,197,94,.12);}
+.warn{background:rgba(245,158,11,.12);}
+.bad{background:rgba(239,68,68,.12);}
 
 .highlight{
 font-size:16px;
 font-weight:600;
 margin-bottom:6px;
-}
-
-.small{
-font-size:13px;
-color:var(--muted);
-}
-
-.decision{
-font-size:20px;
-font-weight:700;
-text-align:center;
-margin-top:10px;
 }
 
 button{
@@ -116,213 +111,183 @@ cursor:pointer;
 .btn-good{background:var(--good);color:#000;}
 .btn-bad{background:var(--bad);color:#fff;}
 .btn-warn{background:var(--warn);color:#000;}
+
+canvas{
+width:100%;
+height:180px;
+background:#0b0d15;
+border-radius:12px;
+}
 </style>
 </head>
 
 <body>
 <div class="container">
 
-<h1>🏓 TT Live Analyzer</h1>
+<h1>🏓 TT Analyzer 9.0</h1>
 
 <div class="card">
 <label class="upload">
-📸 Загрузить скрин LIVE (после 1-й партии)
+📸 Загрузить LIVE-линию
 <input type="file" accept="image/*" onchange="analyze(event)">
 </label>
-<div class="small" id="status"></div>
 </div>
 
-<div class="card" id="output">
-Ожидание скриншота
+<div class="card">
+<label>Банк</label>
+<input type="number" id="bank" placeholder="1000">
+<label>Сценарий выхода</label>
+<select id="exit">
+<option>Let It Ride</option>
+<option>Lock Profit</option>
+<option>Min Loss</option>
+<option>Auto Hedge</option>
+</select>
 </div>
+
+<div class="card" id="output">Ожидание скрина</div>
 
 <div class="card">
 <div class="highlight">📒 Журнал сделок</div>
-<div id="tradeLog"></div>
+<div id="log"></div>
 </div>
 
 <div class="card">
-<div class="highlight">📈 ROI</div>
-<div id="roi"></div>
+<div class="highlight">📈 Equity Curve</div>
+<canvas id="equity"></canvas>
 </div>
 
 </div>
 
 <script>
-let trades = JSON.parse(localStorage.getItem('tt_trades') || '[]');
-let currentBet = null;
+let trades=JSON.parse(localStorage.getItem('tt9_trades')||'[]');
+let current=null;
 
 renderLog();
-renderROI();
+drawEquity();
 
 function analyze(e){
-const status=document.getElementById('status');
-status.innerText='Сканирование...';
-
-Tesseract.recognize(
-e.target.files[0],
-'rus',
-{logger:m=>{
-if(m.progress) status.innerText='OCR '+Math.round(m.progress*100)+'%';
-}}
-).then(r=>{
-status.innerText='Готово';
-processText(r.data.text);
+Tesseract.recognize(e.target.files[0],'rus').then(r=>{
+parseLine(r.data.text);
 });
 }
 
-function processText(text){
+function parseLine(text){
 const odds=text.match(/\d\.\d{2}/g);
-if(!odds || odds.length < 10){
-document.getElementById('output').innerHTML=
-'<div class="block bad">❌ Не удалось распознать линию</div>';
+if(!odds||odds.length<10){
+document.getElementById('output').innerHTML='❌ OCR ошибка';
 return;
 }
 
 const nums=odds.map(Number);
-
 let totals=[
-{line:16.5, tm:nums[2], tb:nums[3]},
-{line:17.5, tm:nums[4], tb:nums[5]},
-{line:18.5, tm:nums[6], tb:nums[7]},
-{line:19.5, tm:nums[8], tb:nums[9]},
-{line:20.5, tm:nums[10],tb:nums[11]}
+{l:16.5,tm:nums[2],tb:nums[3]},
+{l:17.5,tm:nums[4],tb:nums[5]},
+{l:18.5,tm:nums[6],tb:nums[7]},
+{l:19.5,tm:nums[8],tb:nums[9]},
+{l:20.5,tm:nums[10],tb:nums[11]}
 ];
 
 let best=null;
-let maxValue=0;
-let lbi=0;
-let rows='';
+let edge=0;
 
 totals.forEach(t=>{
 let min=Math.min(t.tm,t.tb);
 let max=Math.max(t.tm,t.tb);
-let diff=max-min;
-lbi+=diff*10;
-
-let side=t.tm>t.tb?'ТБ':'ТМ';
-
 if(min>=1.70){
-let prob=1/max;
-let value=(prob*min)-1;
-rows+=`
-<div class="row">
-<span>${side} ${t.line}</span>
-<b>${min.toFixed(2)} | Δ ${diff.toFixed(2)}</b>
-</div>
-`;
-if(value>maxValue){
-maxValue=value;
-best={side,line:t.line,odd:min,prob,value};
+let e=(max-min)*min;
+if(e>edge){
+edge=e;
+best={
+line:t.l,
+side:t.tm>t.tb?'ТБ':'ТМ',
+odd:min,
+prob:1/max
+};
 }
 }
 });
 
-lbi=Math.min(100,Math.round(lbi));
-
-let variance='HIGH';
-if(lbi>70) variance='LOW';
-else if(lbi>45) variance='MEDIUM';
-
-let kelly=best ? ((best.prob*best.odd-1)/(best.odd-1))*0.25 : 0;
-kelly=Math.max(0,kelly);
-
-currentBet = best;
-
-let decision='❌ ПРОПУСТИТЬ';
-let cls='bad';
-
-if(best && best.value>0 && variance!=='HIGH'){
-decision='✅ СТАВИТЬ';
-cls='good';
-}else if(best && best.value>0){
-decision='⚠️ ОСТОРОЖНО';
-cls='warn';
+if(!best){
+document.getElementById('output').innerHTML='❌ Нет value ≥1.70';
+return;
 }
+
+let bank=Number(document.getElementById('bank').value);
+let kelly=(best.prob*best.odd-1)/(best.odd-1);
+kelly=Math.max(0,kelly)*0.25;
+let stake=(bank*kelly).toFixed(2);
+
+current={best,stake};
 
 document.getElementById('output').innerHTML=`
-<div class="row"><span>Индекс перекоса</span><b>${lbi}/100</b></div>
-<div class="row"><span>Дисперсия</span><b>${variance}</b></div>
-
-<div class="block">
-<div class="highlight">🔍 Распознанные тоталы</div>
-${rows}
-</div>
-
-${best?`
 <div class="block good">
-<div class="highlight">⭐ Основная идея</div>
-${best.side} ${best.line} @ ${best.odd.toFixed(2)}<br>
-Value: ${best.value.toFixed(3)}<br>
-Kelly (¼): ${(kelly*100).toFixed(2)}% банка
-<button class="btn-good" onclick="addTrade()">➕ Добавить сделку</button>
+<div class="highlight">⭐ Сделка (Kelly)</div>
+${best.side} ${best.line} @ ${best.odd}<br>
+Kelly stake: ${stake}
 </div>
-`:
-'<div class="block bad">Value не найдено</div>'}
 
-<div class="block ${cls}">
-<div class="decision">${decision}</div>
-</div>
+<button class="btn-good" onclick="closeTrade('win')">✔️ Win</button>
+<button class="btn-bad" onclick="closeTrade('lose')">❌ Lose</button>
 `;
 }
 
-function addTrade(){
-if(!currentBet) return;
+function closeTrade(res){
+let profit=res==='win'
+? current.stake*(current.best.odd-1)
+: -current.stake;
+
 trades.push({
 date:new Date().toLocaleString(),
-bet:`${currentBet.side} ${currentBet.line}`,
-odd:currentBet.odd,
-result:null,
-profit:0
+bet:`${current.best.side} ${current.best.line}`,
+odd:current.best.odd,
+stake:Number(current.stake),
+profit
 });
-save();
-renderLog();
-renderROI();
-}
 
-function setResult(i,res){
-let t=trades[i];
-t.result=res;
-t.profit=res==='win' ? (t.odd-1) : -1;
-save();
+localStorage.setItem('tt9_trades',JSON.stringify(trades));
 renderLog();
-renderROI();
+drawEquity();
+document.getElementById('output').innerHTML='Сделка зафиксирована';
 }
 
 function renderLog(){
-const el=document.getElementById('tradeLog');
+const el=document.getElementById('log');
 el.innerHTML='';
-trades.slice().reverse().forEach((t,i)=>{
+trades.slice().reverse().forEach(t=>{
 el.innerHTML+=`
 <div class="row">
-<span>${t.bet} @ ${t.odd.toFixed(2)}</span>
-${t.result?
-`<b style="color:${t.profit>0?'#22c55e':'#ef4444'}">${t.profit.toFixed(2)}</b>`:
-`<span>
-<button class="btn-good" onclick="setResult(${trades.length-1-i},'win')">Win</button>
-<button class="btn-bad" onclick="setResult(${trades.length-1-i},'lose')">Lose</button>
-</span>`}
+<span>${t.bet} @ ${t.odd}</span>
+<b style="color:${t.profit>=0?'#22c55e':'#ef4444'}">
+${t.profit.toFixed(2)}
+</b>
 </div>`;
 });
 }
 
-function renderROI(){
-const el=document.getElementById('roi');
-let total=trades.filter(t=>t.result).length;
-let profit=trades.reduce((a,b)=>a+b.profit,0);
-let roi=total? (profit/total*100):0;
-el.innerHTML=`
-<div class="row"><span>Сделок</span><b>${total}</b></div>
-<div class="row"><span>Профит</span><b>${profit.toFixed(2)}</b></div>
-<div class="row"><span>ROI</span><b>${roi.toFixed(1)}%</b></div>
-`;
-}
+function drawEquity(){
+const c=document.getElementById('equity');
+const ctx=c.getContext('2d');
+ctx.clearRect(0,0,c.width,c.height);
 
-function save(){
-localStorage.setItem('tt_trades',JSON.stringify(trades));
+let equity=[0];
+trades.forEach(t=>equity.push(equity[equity.length-1]+t.profit));
+
+let max=Math.max(...equity);
+let min=Math.min(...equity);
+let range=max-min||1;
+
+ctx.strokeStyle='#22c55e';
+ctx.beginPath();
+equity.forEach((v,i)=>{
+let x=i*(c.width/(equity.length-1||1));
+let y=c.height-((v-min)/range*c.height);
+if(i===0)ctx.moveTo(x,y);
+else ctx.lineTo(x,y);
+});
+ctx.stroke();
 }
 </script>
 
 </body>
 </html>
-
