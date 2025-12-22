@@ -105,6 +105,49 @@
             margin-top: 8px;
         }
 
+        /* Tabs Navigation */
+        .tabs {
+            display: flex;
+            background: var(--card);
+            border-radius: 16px;
+            padding: 4px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 14px 0;
+            font-weight: 600;
+            font-size: 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-secondary);
+        }
+
+        .tab.active {
+            background: var(--gradient);
+            color: white;
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
         /* Upload Card */
         .upload-card {
             background: var(--card);
@@ -269,6 +312,35 @@
             font-weight: 700;
             font-size: 16px;
             box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Save to Journal Button */
+        .save-journal-btn {
+            width: 100%;
+            background: var(--profit-gradient);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .save-journal-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
+        }
+
+        .save-journal-btn:active {
+            transform: translateY(0);
         }
 
         /* Market Overview */
@@ -522,6 +594,353 @@
             font-size: 12px;
         }
 
+        /* Journal Tab */
+        .journal-stats {
+            background: var(--card);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--card-secondary);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-card .label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .win-rate {
+            font-size: 18px;
+            font-weight: 700;
+            padding: 12px 24px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .win-rate.positive {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--profit);
+            border: 2px solid var(--profit);
+        }
+
+        .win-rate.negative {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 2px solid var(--danger);
+        }
+
+        .journal-entries {
+            background: var(--card);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .entries-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .entries-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .clear-journal-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .clear-journal-btn:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
+        .entries-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .entry-item {
+            background: var(--card-secondary);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--accent);
+            transition: all 0.3s ease;
+        }
+
+        .entry-item.win {
+            border-left-color: var(--profit);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%);
+        }
+
+        .entry-item.loss {
+            border-left-color: var(--danger);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.02) 100%);
+        }
+
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .entry-date {
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .entry-result {
+            font-size: 14px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+
+        .entry-result.win {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--profit);
+        }
+
+        .entry-result.loss {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .entry-content {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .entry-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .entry-label {
+            color: var(--text-secondary);
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .entry-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .no-entries {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+
+        .no-entries-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 14, 23, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal {
+            background: var(--card);
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 380px;
+            width: 100%;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .modal-subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 16px;
+            background: var(--card-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .result-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .result-option {
+            padding: 16px;
+            text-align: center;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid var(--border);
+            font-weight: 600;
+        }
+
+        .result-option.win {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--profit);
+        }
+
+        .result-option.loss {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .result-option.selected {
+            border-color: currentColor;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 16px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .modal-btn.cancel {
+            background: var(--card-secondary);
+            color: var(--text);
+        }
+
+        .modal-btn.cancel:hover {
+            background: var(--border);
+        }
+
+        .modal-btn.save {
+            background: var(--profit-gradient);
+            color: white;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .modal-btn.save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
+        }
+
         /* Footer */
         .footer {
             text-align: center;
@@ -552,16 +971,22 @@
                 padding: 16px 12px 32px;
             }
             
-            .market-grid {
+            .market-grid,
+            .stats-grid {
                 grid-template-columns: 1fr;
             }
             
-            .bet-details {
+            .bet-details,
+            .entry-content {
                 grid-template-columns: 1fr;
             }
             
             .bet-metrics {
                 grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .modal {
+                padding: 24px;
             }
         }
 
@@ -608,113 +1033,210 @@
             <div class="beta-badge">ALPHA v7.0.1</div>
         </div>
 
-        <!-- Upload Card -->
-        <div class="upload-card">
-            <div class="upload-header">
-                <h2>Live Market Scan</h2>
-                <p>Загрузите скриншот линии 5-й партии для глубокого анализа перекосов</p>
-            </div>
-            
-            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                <div class="upload-icon">
-                    📈
+        <!-- Tabs Navigation -->
+        <div class="tabs">
+            <div class="tab active" data-tab="analysis">Анализ</div>
+            <div class="tab" data-tab="journal">Журнал</div>
+        </div>
+
+        <!-- Analysis Tab -->
+        <div id="analysisTab" class="tab-content active">
+            <!-- Upload Card -->
+            <div class="upload-card">
+                <div class="upload-header">
+                    <h2>Live Market Scan</h2>
+                    <p>Загрузите скриншот линии 5-й партии для глубокого анализа перекосов</p>
                 </div>
-                <div class="upload-text">Загрузить LIVE-скрин</div>
-                <p class="upload-subtext">Система анализирует 120+ параметров за 3 секунды</p>
-            </div>
-            <input type="file" id="fileInput" accept="image/*" onchange="analyze(event)">
-            
-            <div class="status-container" id="statusContainer">
-                <div class="status-indicator">
-                    <div class="spinner hidden" id="spinner"></div>
-                    <span id="statusIcon">🔍</span>
+                
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">
+                        📈
+                    </div>
+                    <div class="upload-text">Загрузить LIVE-скрин</div>
+                    <p class="upload-subtext">Система анализирует 120+ параметров за 3 секунды</p>
                 </div>
-                <div class="status-content">
-                    <div class="status-text" id="statusText">Готов к анализу</div>
-                    <div class="status-subtext" id="statusSubtext">Ожидание загрузки скриншота</div>
+                <input type="file" id="fileInput" accept="image/*" onchange="analyze(event)">
+                
+                <div class="status-container" id="statusContainer">
+                    <div class="status-indicator">
+                        <div class="spinner hidden" id="spinner"></div>
+                        <span id="statusIcon">🔍</span>
+                    </div>
+                    <div class="status-content">
+                        <div class="status-text" id="statusText">Готов к анализу</div>
+                        <div class="status-subtext" id="statusSubtext">Ожидание загрузки скриншота</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Container -->
+            <div id="resultsContainer" class="hidden">
+                <!-- Market Overview -->
+                <div class="results-card slide-in">
+                    <div class="results-header">
+                        <div class="results-title">📊 Обзор рынка</div>
+                        <div class="confidence-badge" id="confidenceBadge">–%</div>
+                    </div>
+                    
+                    <div class="market-overview">
+                        <div class="market-grid">
+                            <div class="market-stat">
+                                <div class="stat-value stat-profit" id="marketEdge">–%</div>
+                                <div class="stat-label">ПЕРЕКОС РЫНКА</div>
+                            </div>
+                            <div class="market-stat">
+                                <div class="stat-value stat-risk" id="expectedValue">–%</div>
+                                <div class="stat-label">МАТ. ОЖИДАНИЕ</div>
+                            </div>
+                            <div class="market-stat">
+                                <div class="stat-value stat-neutral" id="arbitrage">–%</div>
+                                <div class="stat-label">АРБИТРАЖ</div>
+                            </div>
+                            <div class="market-stat">
+                                <div class="stat-value" id="lineStrength">–</div>
+                                <div class="stat-label">СИЛА ЛИНИИ</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="chart-container">
+                        <canvas id="marketChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Value Bets -->
+                <div class="results-card slide-in">
+                    <div class="section-title">💎 Value-ставки</div>
+                    <div class="value-bets" id="valueBets">
+                        <!-- Bets will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Decision Matrix -->
+                <div class="results-card slide-in">
+                    <div class="decision-matrix">
+                        <div class="decision-header">
+                            <div class="decision-title">⚖️ Матрица решений</div>
+                            <div class="decision-subtitle">На основе 17 алгоритмов анализа</div>
+                        </div>
+                        <div class="decision-content" id="decisionMatrix">
+                            <!-- Decision items will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Management -->
+                <div class="results-card slide-in">
+                    <div class="section-title">🛡️ Управление рисками</div>
+                    <div class="risk-management">
+                        <div class="risk-grid">
+                            <div class="risk-item">
+                                <div class="risk-value" id="riskScore">–/10</div>
+                                <div class="risk-label">РИСК-СКОР</div>
+                            </div>
+                            <div class="risk-item">
+                                <div class="risk-value" id="optimalStake">–%</div>
+                                <div class="risk-label">ОПТИМАЛЬНАЯ СТАВКА</div>
+                            </div>
+                            <div class="risk-item">
+                                <div class="risk-value" id="kelly">–%</div>
+                                <div class="risk-label">КРИТЕРИЙ КЕЛЛИ</div>
+                            </div>
+                            <div class="risk-item">
+                                <div class="risk-value" id="roi">–%</div>
+                                <div class="risk-label">ОЖИДАЕМЫЙ ROI</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save to Journal Button -->
+                <button class="save-journal-btn" id="saveToJournalBtn" onclick="showSaveModal()">
+                    <span>💾</span> Сохранить в журнал
+                </button>
+            </div>
+        </div>
+
+        <!-- Journal Tab -->
+        <div id="journalTab" class="tab-content">
+            <!-- Statistics -->
+            <div class="journal-stats slide-in">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="value" id="totalBets">0</div>
+                        <div class="label">Всего ставок</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="winBets">0</div>
+                        <div class="label">Выигрыши</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="lossBets">0</div>
+                        <div class="label">Проигрыши</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="avgEdge">0%</div>
+                        <div class="label">Средний перекос</div>
+                    </div>
+                </div>
+                
+                <div id="winRateContainer" class="hidden">
+                    <div class="win-rate positive" id="winRate">
+                        Процент успеха: –%
+                    </div>
+                </div>
+            </div>
+
+            <!-- Journal Entries -->
+            <div class="journal-entries slide-in">
+                <div class="entries-header">
+                    <div class="entries-title">📋 История ставок</div>
+                    <button class="clear-journal-btn" onclick="clearJournal()">
+                        <span>🗑️</span> Очистить
+                    </button>
+                </div>
+                
+                <div class="entries-list" id="entriesList">
+                    <!-- Entries will be inserted here -->
                 </div>
             </div>
         </div>
 
-        <!-- Results Container -->
-        <div id="resultsContainer" class="hidden">
-            <!-- Market Overview -->
-            <div class="results-card slide-in">
-                <div class="results-header">
-                    <div class="results-title">📊 Обзор рынка</div>
-                    <div class="confidence-badge" id="confidenceBadge">–%</div>
+        <!-- Save to Journal Modal -->
+        <div id="saveModal" class="modal-overlay hidden">
+            <div class="modal">
+                <div class="modal-header">
+                    <div class="modal-title">💾 Сохранить анализ</div>
+                    <div class="modal-subtitle">Заполните результат ставки для сохранения в журнал</div>
                 </div>
                 
-                <div class="market-overview">
-                    <div class="market-grid">
-                        <div class="market-stat">
-                            <div class="stat-value stat-profit" id="marketEdge">–%</div>
-                            <div class="stat-label">ПЕРЕКОС РЫНКА</div>
+                <div class="form-group">
+                    <label class="form-label">Счет в лайве:</label>
+                    <input type="text" class="form-input" id="liveScore" placeholder="Пример: 15:13" maxlength="10">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Рекомендация:</label>
+                    <input type="text" class="form-input" id="recommendation" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Результат ставки:</label>
+                    <div class="result-options">
+                        <div class="result-option win" onclick="selectResult('win')">
+                            ✅ Выигрыш
                         </div>
-                        <div class="market-stat">
-                            <div class="stat-value stat-risk" id="expectedValue">–%</div>
-                            <div class="stat-label">МАТ. ОЖИДАНИЕ</div>
-                        </div>
-                        <div class="market-stat">
-                            <div class="stat-value stat-neutral" id="arbitrage">–%</div>
-                            <div class="stat-label">АРБИТРАЖ</div>
-                        </div>
-                        <div class="market-stat">
-                            <div class="stat-value" id="lineStrength">–</div>
-                            <div class="stat-label">СИЛА ЛИНИИ</div>
+                        <div class="result-option loss" onclick="selectResult('loss')">
+                            ❌ Проигрыш
                         </div>
                     </div>
+                    <input type="hidden" id="selectedResult">
                 </div>
-
-                <!-- Chart -->
-                <div class="chart-container">
-                    <canvas id="marketChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Value Bets -->
-            <div class="results-card slide-in">
-                <div class="section-title">💎 Value-ставки</div>
-                <div class="value-bets" id="valueBets">
-                    <!-- Bets will be inserted here -->
-                </div>
-            </div>
-
-            <!-- Decision Matrix -->
-            <div class="results-card slide-in">
-                <div class="decision-matrix">
-                    <div class="decision-header">
-                        <div class="decision-title">⚖️ Матрица решений</div>
-                        <div class="decision-subtitle">На основе 17 алгоритмов анализа</div>
-                    </div>
-                    <div class="decision-content" id="decisionMatrix">
-                        <!-- Decision items will be inserted here -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Risk Management -->
-            <div class="results-card slide-in">
-                <div class="section-title">🛡️ Управление рисками</div>
-                <div class="risk-management">
-                    <div class="risk-grid">
-                        <div class="risk-item">
-                            <div class="risk-value" id="riskScore">–/10</div>
-                            <div class="risk-label">РИСК-СКОР</div>
-                        </div>
-                        <div class="risk-item">
-                            <div class="risk-value" id="optimalStake">–%</div>
-                            <div class="risk-label">ОПТИМАЛЬНАЯ СТАВКА</div>
-                        </div>
-                        <div class="risk-item">
-                            <div class="risk-value" id="kelly">–%</div>
-                            <div class="risk-label">КРИТЕРИЙ КЕЛЛИ</div>
-                        </div>
-                        <div class="risk-item">
-                            <div class="risk-value" id="roi">–%</div>
-                            <div class="risk-label">ОЖИДАЕМЫЙ ROI</div>
-                        </div>
-                    </div>
+                
+                <div class="modal-actions">
+                    <button class="modal-btn cancel" onclick="closeSaveModal()">Отмена</button>
+                    <button class="modal-btn save" onclick="saveToJournal()">Сохранить</button>
                 </div>
             </div>
         </div>
@@ -740,8 +1262,53 @@
         const optimalStake = document.getElementById('optimalStake');
         const kelly = document.getElementById('kelly');
         const roi = document.getElementById('roi');
+        const saveToJournalBtn = document.getElementById('saveToJournalBtn');
+
+        // Journal elements
+        const totalBets = document.getElementById('totalBets');
+        const winBets = document.getElementById('winBets');
+        const lossBets = document.getElementById('lossBets');
+        const avgEdge = document.getElementById('avgEdge');
+        const winRate = document.getElementById('winRate');
+        const winRateContainer = document.getElementById('winRateContainer');
+        const entriesList = document.getElementById('entriesList');
+
+        // Modal elements
+        const saveModal = document.getElementById('saveModal');
+        const liveScoreInput = document.getElementById('liveScore');
+        const recommendationInput = document.getElementById('recommendation');
+        const selectedResultInput = document.getElementById('selectedResult');
+
+        // Tabs functionality
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.dataset.tab;
+                
+                // Update active tab
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Show active content
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
+                    if (content.id === tabId + 'Tab') {
+                        content.classList.add('active');
+                    }
+                });
+                
+                // Update journal when opening journal tab
+                if (tabId === 'journal') {
+                    updateJournalStats();
+                    loadJournalEntries();
+                }
+            });
+        });
 
         let marketChart = null;
+        let currentAnalysisData = null;
 
         // Professional Analysis Algorithms
         class MarketAnalyzer {
@@ -750,6 +1317,7 @@
                 this.marketData = {};
                 this.valueBets = [];
                 this.riskMetrics = {};
+                this.decisions = [];
             }
 
             // Parse line and extract odds
@@ -871,7 +1439,7 @@
                 // Calculate market overview metrics
                 this.marketData = {
                     avgMargin: totalMargin / this.totals.length,
-                    maxEdge: Math.max(...valueBets.map(b => b.edge)),
+                    maxEdge: valueBets.length > 0 ? Math.max(...valueBets.map(b => b.edge)) : 0,
                     totalValueBets: valueBets.length,
                     arbitrage: arbitrageOpportunities.length > 0 ? 
                         Math.max(...arbitrageOpportunities.map(a => a.arbitrage)) : 0,
@@ -881,10 +1449,10 @@
 
                 this.valueBets = valueBets.sort((a, b) => b.edge - a.edge);
                 this.calculateRiskMetrics();
+                this.decisions = this.getDecisionMatrix();
             }
 
             calculateConfidence(edge, odds) {
-                // Confidence based on edge and odds value
                 let confidence = edge * 2;
                 if (odds >= 2.0) confidence *= 1.2;
                 if (odds >= 3.0) confidence *= 1.5;
@@ -903,7 +1471,6 @@
             }
 
             calculateLineStrength() {
-                // Calculate how strong the line signals are
                 let strength = 50;
                 
                 const edges = this.valueBets.map(b => b.edge);
@@ -930,14 +1497,12 @@
                     return;
                 }
 
-                // Risk score 1-10 (1=low risk, 10=high risk)
                 let riskScore = 5;
                 if (bestBet.odds >= 2.5) riskScore += 2;
                 if (bestBet.edge >= 15) riskScore -= 2;
                 if (bestBet.edge <= 7) riskScore += 1;
                 if (this.marketData.avgMargin <= 3) riskScore -= 1;
 
-                // Optimal stake based on Kelly and risk management
                 const kellyStake = Math.min(5, Math.max(1, bestBet.kelly));
                 const riskAdjustedStake = kellyStake * (1 - (riskScore - 1) / 10);
 
@@ -982,6 +1547,12 @@
                 
                 return decisions;
             }
+
+            getBestRecommendation() {
+                if (this.valueBets.length === 0) return 'Нет рекомендаций';
+                const bestBet = this.valueBets[0];
+                return `${bestBet.type} ${bestBet.line} @ ${bestBet.odds.toFixed(2)} (Перекос: ${bestBet.edge.toFixed(1)}%)`;
+            }
         }
 
         // Main Analysis Function
@@ -1020,6 +1591,9 @@
                     throw new Error('Не удалось распознать структуру линии');
                 }
 
+                // Store analysis data
+                currentAnalysisData = analyzer;
+                
                 // Update UI with results
                 updateUI(analyzer);
                 
@@ -1056,7 +1630,7 @@
             updateValueBets(analyzer.valueBets);
 
             // Update decision matrix
-            updateDecisionMatrix(analyzer.getDecisionMatrix());
+            updateDecisionMatrix(analyzer.decisions);
 
             // Update risk metrics
             riskScore.textContent = `${analyzer.riskMetrics.riskScore}/10`;
@@ -1239,6 +1813,172 @@
             });
         }
 
+        // Journal Functions
+        function showSaveModal() {
+            if (!currentAnalysisData || currentAnalysisData.valueBets.length === 0) {
+                alert('Сначала выполните анализ и найдите value-ставки');
+                return;
+            }
+            
+            // Set recommendation from analysis
+            recommendationInput.value = currentAnalysisData.getBestRecommendation();
+            
+            // Reset form
+            liveScoreInput.value = '';
+            selectedResultInput.value = '';
+            document.querySelectorAll('.result-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            
+            // Show modal
+            saveModal.classList.remove('hidden');
+        }
+
+        function closeSaveModal() {
+            saveModal.classList.add('hidden');
+        }
+
+        function selectResult(result) {
+            selectedResultInput.value = result;
+            
+            // Update UI
+            document.querySelectorAll('.result-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+        }
+
+        function saveToJournal() {
+            const liveScore = liveScoreInput.value.trim();
+            const result = selectedResultInput.value;
+            
+            if (!liveScore) {
+                alert('Введите счет в лайве');
+                return;
+            }
+            
+            if (!result) {
+                alert('Выберите результат ставки');
+                return;
+            }
+            
+            // Create journal entry
+            const entry = {
+                id: Date.now(),
+                date: new Date().toLocaleString('ru-RU'),
+                liveScore: liveScore,
+                recommendation: recommendationInput.value,
+                result: result,
+                marketEdge: currentAnalysisData.marketData.maxEdge,
+                confidence: currentAnalysisData.valueBets[0]?.confidence || 0
+            };
+            
+            // Save to localStorage
+            let journal = JSON.parse(localStorage.getItem('ttAnalyzerJournal') || '[]');
+            journal.unshift(entry); // Add to beginning
+            localStorage.setItem('ttAnalyzerJournal', JSON.stringify(journal));
+            
+            // Close modal
+            closeSaveModal();
+            
+            // Show success message
+            alert('✅ Анализ сохранен в журнал');
+            
+            // If on journal tab, update it
+            if (document.querySelector('.tab[data-tab="journal"]').classList.contains('active')) {
+                updateJournalStats();
+                loadJournalEntries();
+            }
+        }
+
+        function updateJournalStats() {
+            const journal = JSON.parse(localStorage.getItem('ttAnalyzerJournal') || '[]');
+            
+            totalBets.textContent = journal.length;
+            
+            const wins = journal.filter(entry => entry.result === 'win').length;
+            const losses = journal.filter(entry => entry.result === 'loss').length;
+            
+            winBets.textContent = wins;
+            lossBets.textContent = losses;
+            
+            // Calculate average edge
+            const avgEdgeValue = journal.length > 0 ? 
+                journal.reduce((sum, entry) => sum + entry.marketEdge, 0) / journal.length : 0;
+            avgEdge.textContent = avgEdgeValue.toFixed(1) + '%';
+            
+            // Calculate win rate
+            if (journal.length > 0) {
+                const winRateValue = (wins / journal.length) * 100;
+                winRate.textContent = `Процент успеха: ${winRateValue.toFixed(1)}%`;
+                winRate.className = `win-rate ${winRateValue >= 50 ? 'positive' : 'negative'}`;
+                winRateContainer.classList.remove('hidden');
+            } else {
+                winRateContainer.classList.add('hidden');
+            }
+        }
+
+        function loadJournalEntries() {
+            const journal = JSON.parse(localStorage.getItem('ttAnalyzerJournal') || '[]');
+            entriesList.innerHTML = '';
+            
+            if (journal.length === 0) {
+                entriesList.innerHTML = `
+                    <div class="no-entries">
+                        <div class="no-entries-icon">📊</div>
+                        <div class="mb-4">Журнал пуст</div>
+                        <div style="color: var(--text-secondary); font-size: 14px;">
+                            Сохраните свой первый анализ для отслеживания результатов
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            journal.forEach((entry, index) => {
+                const entryElement = document.createElement('div');
+                entryElement.className = `entry-item ${entry.result} slide-in`;
+                entryElement.style.animationDelay = `${index * 0.1}s`;
+                
+                entryElement.innerHTML = `
+                    <div class="entry-header">
+                        <div class="entry-date">${entry.date}</div>
+                        <div class="entry-result ${entry.result}">
+                            ${entry.result === 'win' ? '✅ Выигрыш' : '❌ Проигрыш'}
+                        </div>
+                    </div>
+                    <div class="entry-content">
+                        <div class="entry-field">
+                            <div class="entry-label">Счет в лайве</div>
+                            <div class="entry-value">${entry.liveScore}</div>
+                        </div>
+                        <div class="entry-field">
+                            <div class="entry-label">Перекос рынка</div>
+                            <div class="entry-value">${entry.marketEdge.toFixed(1)}%</div>
+                        </div>
+                        <div class="entry-field">
+                            <div class="entry-label">Рекомендация</div>
+                            <div class="entry-value">${entry.recommendation}</div>
+                        </div>
+                        <div class="entry-field">
+                            <div class="entry-label">Доверие</div>
+                            <div class="entry-value">${entry.confidence.toFixed(0)}%</div>
+                        </div>
+                    </div>
+                `;
+                
+                entriesList.appendChild(entryElement);
+            });
+        }
+
+        function clearJournal() {
+            if (confirm('Вы уверены, что хотите очистить весь журнал? Это действие нельзя отменить.')) {
+                localStorage.removeItem('ttAnalyzerJournal');
+                updateJournalStats();
+                loadJournalEntries();
+            }
+        }
+
         // Event Listeners
         document.querySelector('.upload-area').addEventListener('click', function() {
             this.style.transform = 'scale(0.98)';
@@ -1249,7 +1989,11 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            // Add any initialization code here
+            // Load journal stats if on journal tab
+            if (document.querySelector('.tab[data-tab="journal"]').classList.contains('active')) {
+                updateJournalStats();
+                loadJournalEntries();
+            }
         });
     </script>
 
