@@ -594,6 +594,175 @@
             font-size: 12px;
         }
 
+        /* CALCULATOR STYLES - COMPACT & ADAPTIVE */
+        .calculator-table-container {
+            background: var(--card-secondary);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .calculator-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 0;
+            table-layout: fixed;
+        }
+
+        .calculator-table th {
+            text-align: center;
+            font-weight: 700;
+            color: var(--text-secondary);
+            font-size: 11px;
+            padding: 10px 4px;
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            width: 25%;
+        }
+
+        .calculator-table td {
+            text-align: center;
+            padding: 12px 4px;
+            font-size: 14px;
+            font-weight: 700;
+            border: 1px solid rgba(45, 55, 86, 0.3);
+            transition: all 0.2s ease;
+            height: 50px;
+            vertical-align: middle;
+            width: 25%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .calculator-table tr:first-child td {
+            border-top: 1px solid var(--border);
+        }
+
+        .calculator-table tr:last-child td {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .calculator-table td:first-child {
+            border-left: 1px solid var(--border);
+        }
+
+        .calculator-table td:last-child {
+            border-right: 1px solid var(--border);
+        }
+
+        .calculator-cell {
+            background: var(--card-secondary);
+            border-radius: 6px;
+        }
+
+        .calculator-cell.editable {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border: 2px solid var(--accent) !important;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .calculator-cell.editable::after {
+            content: '✏️';
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 8px;
+            opacity: 0.7;
+        }
+
+        .calculator-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+            outline: none;
+            font-family: inherit;
+            padding: 0;
+            height: 100%;
+            min-width: 0;
+        }
+
+        .calculator-input::-webkit-inner-spin-button,
+        .calculator-input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .calculator-legend {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 12px;
+            margin-top: 16px;
+            border: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .legend-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .legend-color.editable {
+            background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%);
+        }
+
+        .legend-color.calculated {
+            background: var(--card-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .calculator-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .info-item {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            min-width: 0;
+        }
+
+        .info-value {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+            font-size: 10px;
+            font-weight: 500;
+        }
+
         /* Journal Tab */
         .journal-stats {
             background: var(--card);
@@ -966,9 +1135,59 @@
         }
 
         /* Responsive */
+        @media (max-width: 430px) {
+            .calculator-table {
+                table-layout: auto;
+            }
+            
+            .calculator-table th,
+            .calculator-table td {
+                padding: 8px 3px;
+                font-size: 12px;
+                width: auto;
+            }
+            
+            .calculator-table th {
+                font-size: 10px;
+                padding: 6px 3px;
+            }
+            
+            .calculator-table td {
+                height: 45px;
+            }
+        }
+
         @media (max-width: 380px) {
             .container {
                 padding: 16px 12px 32px;
+            }
+            
+            .calculator-table-container {
+                padding: 12px;
+            }
+            
+            .calculator-table th,
+            .calculator-table td {
+                padding: 6px 2px;
+                font-size: 11px;
+            }
+            
+            .calculator-table th {
+                font-size: 9px;
+            }
+            
+            .calculator-table td {
+                height: 40px;
+            }
+            
+            .calculator-cell.editable::after {
+                font-size: 7px;
+            }
+            
+            .calculator-legend {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
             }
             
             .market-grid,
@@ -983,6 +1202,10 @@
             
             .bet-metrics {
                 grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .calculator-info {
+                grid-template-columns: 1fr;
             }
             
             .modal {
@@ -1036,6 +1259,7 @@
         <!-- Tabs Navigation -->
         <div class="tabs">
             <div class="tab active" data-tab="analysis">Анализ</div>
+            <div class="tab" data-tab="calculator">Калькулятор</div>
             <div class="tab" data-tab="journal">Журнал</div>
         </div>
 
@@ -1154,6 +1378,95 @@
                 <!-- Save to Journal Button -->
                 <button class="save-journal-btn" id="saveToJournalBtn" onclick="showSaveModal()">
                     <span>💾</span> Сохранить в журнал
+                </button>
+            </div>
+        </div>
+
+        <!-- Calculator Tab -->
+        <div id="calculatorTab" class="tab-content">
+            <div class="results-card slide-in">
+                <div class="results-header">
+                    <div class="results-title">🧮 Калькулятор ставок</div>
+                    <div class="confidence-badge">PRO</div>
+                </div>
+                
+                <div class="calculator-table-container">
+                    <table class="calculator-table">
+                        <thead>
+                            <tr>
+                                <th>COLUMN A</th>
+                                <th>COLUMN B</th>
+                                <th>COLUMN C</th>
+                                <th>COLUMN D</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Row 1 -->
+                            <tr>
+                                <td class="calculator-cell" id="cell-0-0">165</td>
+                                <td class="calculator-cell" id="cell-0-1">83</td>
+                                <td class="calculator-cell" id="cell-0-2">330</td>
+                                <td class="calculator-cell" id="cell-0-3">165</td>
+                            </tr>
+                            <!-- Row 2 -->
+                            <tr>
+                                <td class="calculator-cell" id="cell-1-0">83</td>
+                                <td class="calculator-cell editable" id="cell-1-1">
+                                    <input type="number" class="calculator-input" value="41" min="1" max="999" 
+                                           onchange="updateAllCells(this.value)" onblur="finishEdit(this.value)">
+                                </td>
+                                <td class="calculator-cell" id="cell-1-2">165</td>
+                                <td class="calculator-cell" id="cell-1-3">83</td>
+                            </tr>
+                            <!-- Row 3 -->
+                            <tr>
+                                <td class="calculator-cell" id="cell-2-0">41</td>
+                                <td class="calculator-cell" id="cell-2-1">21</td>
+                                <td class="calculator-cell" id="cell-2-2">83</td>
+                                <td class="calculator-cell" id="cell-2-3">41</td>
+                            </tr>
+                            <!-- Row 4 -->
+                            <tr>
+                                <td class="calculator-cell" id="cell-3-0">21</td>
+                                <td class="calculator-cell" id="cell-3-1">10</td>
+                                <td class="calculator-cell" id="cell-3-2">41</td>
+                                <td class="calculator-cell" id="cell-3-3">21</td>
+                            </tr>
+                            <!-- Row 5 -->
+                            <tr>
+                                <td class="calculator-cell" id="cell-4-0">10</td>
+                                <td class="calculator-cell" id="cell-4-1">5</td>
+                                <td class="calculator-cell" id="cell-4-2">21</td>
+                                <td class="calculator-cell" id="cell-4-3">10</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="calculator-legend">
+                        <div class="legend-item">
+                            <div class="legend-color editable"></div>
+                            <span>Редактируемая ячейка</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color calculated"></div>
+                            <span>Автоматический расчет</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="calculator-info">
+                    <div class="info-item">
+                        <div class="info-value" id="currentValue">41</div>
+                        <div class="info-label">Текущее значение</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-value" id="multiplier">1.00x</div>
+                        <div class="info-label">Множитель</div>
+                    </div>
+                </div>
+                
+                <button class="save-journal-btn mt-4" onclick="resetCalculator()">
+                    <span>🔄</span> Сбросить значения
                 </button>
             </div>
         </div>
@@ -1279,6 +1592,10 @@
         const recommendationInput = document.getElementById('recommendation');
         const selectedResultInput = document.getElementById('selectedResult');
 
+        // Calculator elements
+        const currentValueDisplay = document.getElementById('currentValue');
+        const multiplierDisplay = document.getElementById('multiplier');
+
         // Tabs functionality
         const tabs = document.querySelectorAll('.tab');
         const tabContents = document.querySelectorAll('.tab-content');
@@ -1309,6 +1626,103 @@
 
         let marketChart = null;
         let currentAnalysisData = null;
+
+        // CALCULATOR FUNCTIONS
+        const originalValues = [
+            [165, 83, 330, 165],
+            [83, 41, 165, 83],
+            [41, 21, 83, 41],
+            [21, 10, 41, 21],
+            [10, 5, 21, 10]
+        ];
+
+        let currentValues = JSON.parse(JSON.stringify(originalValues));
+        let editingCell = { row: 1, col: 1 };
+
+        function updateAllCells(value) {
+            const newValue = parseInt(value);
+            if (isNaN(newValue) || newValue < 1) return;
+            
+            // Update the edited cell
+            currentValues[editingCell.row][editingCell.col] = newValue;
+            
+            // Calculate ratio compared to original
+            const ratio = newValue / originalValues[editingCell.row][editingCell.col];
+            
+            // Update all other cells based on the ratio
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 4; col++) {
+                    // Skip the edited cell
+                    if (row === editingCell.row && col === editingCell.col) continue;
+                    
+                    // Calculate new value based on ratio
+                    const calculatedValue = Math.round(originalValues[row][col] * ratio);
+                    currentValues[row][col] = calculatedValue;
+                    
+                    // Update cell display
+                    const cell = document.getElementById(`cell-${row}-${col}`);
+                    if (row === 1 && col === 1) {
+                        // For editable cell, update the input value
+                        const input = cell.querySelector('.calculator-input');
+                        input.value = newValue;
+                    } else {
+                        cell.textContent = calculatedValue;
+                    }
+                }
+            }
+            
+            // Update info displays
+            currentValueDisplay.textContent = newValue;
+            multiplierDisplay.textContent = ratio.toFixed(2) + 'x';
+            
+            // Add animation to updated cells
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 4; col++) {
+                    if (row === editingCell.row && col === editingCell.col) continue;
+                    
+                    const cell = document.getElementById(`cell-${row}-${col}`);
+                    cell.style.animation = 'none';
+                    setTimeout(() => {
+                        cell.style.animation = 'pulse 0.3s ease';
+                    }, 10);
+                }
+            }
+        }
+
+        function finishEdit(value) {
+            updateAllCells(value);
+        }
+
+        function resetCalculator() {
+            // Reset to original values
+            currentValues = JSON.parse(JSON.stringify(originalValues));
+            
+            // Update all cells
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 4; col++) {
+                    const cell = document.getElementById(`cell-${row}-${col}`);
+                    if (row === 1 && col === 1) {
+                        // Editable cell
+                        const input = cell.querySelector('.calculator-input');
+                        input.value = originalValues[row][col];
+                    } else {
+                        cell.textContent = originalValues[row][col];
+                    }
+                }
+            }
+            
+            // Reset info displays
+            currentValueDisplay.textContent = '41';
+            multiplierDisplay.textContent = '1.00x';
+            
+            // Add animation
+            document.querySelectorAll('.calculator-cell').forEach(cell => {
+                cell.style.animation = 'none';
+                setTimeout(() => {
+                    cell.style.animation = 'pulse 0.5s ease';
+                }, 10);
+            });
+        }
 
         // Professional Analysis Algorithms
         class MarketAnalyzer {
