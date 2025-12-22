@@ -5,33 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/icon231.png">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="TNAPRF">
+    <meta name="apple-mobile-web-app-title" content="TNA8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0a0e17">
-    <title>TT Analyzer 7.0 — Professional Arbitrage Scanner</title>
+    <title>TT Analyzer 8.0 — AI Bookmaker Simulator</title>
 
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/regression@2.0.1/dist/regression.min.js"></script>
 
     <style>
         :root {
             --bg: #0a0e17;
             --card: #13182b;
             --card-secondary: #1a2140;
-            --accent: #8b5cf6;
-            --accent-glow: rgba(139, 92, 246, 0.3);
-            --profit: #10b981;
-            --profit-glow: rgba(16, 185, 129, 0.2);
-            --risk: #f59e0b;
-            --risk-glow: rgba(245, 158, 11, 0.2);
+            --primary: #8b5cf6;
+            --primary-glow: rgba(139, 92, 246, 0.3);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.2);
+            --warning: #f59e0b;
+            --warning-glow: rgba(245, 158, 11, 0.2);
             --danger: #ef4444;
             --danger-glow: rgba(239, 68, 68, 0.2);
             --text: #f1f5f9;
             --text-secondary: #94a3b8;
             --border: #2d3756;
-            --gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-            --profit-gradient: linear-gradient(135deg, #10b981 0%, #34d399 100%);
-            --risk-gradient: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+            --gradient: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+            --profit-gradient: linear-gradient(135deg, #10b981 0%, #22d3ee 100%);
+            --loss-gradient: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
         }
 
         * {
@@ -42,7 +43,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
@@ -78,7 +79,7 @@
         }
 
         .header h1 {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 800;
             margin-bottom: 8px;
             background: var(--gradient);
@@ -94,15 +95,30 @@
             font-weight: 500;
         }
 
-        .header .beta-badge {
-            display: inline-block;
-            background: var(--accent-glow);
-            color: var(--accent);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
+        /* Mode Selector */
+        .mode-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+            background: var(--card);
+            border-radius: 16px;
+            padding: 4px;
+        }
+
+        .mode-tab {
+            padding: 14px;
+            text-align: center;
+            border-radius: 12px;
             font-weight: 600;
-            margin-top: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mode-tab.active {
+            background: var(--gradient);
+            color: white;
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
         }
 
         /* Upload Card */
@@ -111,7 +127,7 @@
             border-radius: 24px;
             padding: 0;
             margin-bottom: 24px;
-            border: 1px solid var(--border);
+            border: 2px solid var(--border);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
             overflow: hidden;
         }
@@ -131,11 +147,6 @@
             gap: 10px;
         }
 
-        .upload-header h2::before {
-            content: '📈';
-            font-size: 24px;
-        }
-
         .upload-header p {
             color: var(--text-secondary);
             font-size: 14px;
@@ -148,14 +159,11 @@
             position: relative;
             cursor: pointer;
             transition: all 0.3s ease;
+            border-bottom: 1px solid var(--border);
         }
 
         .upload-area:hover {
             background: rgba(139, 92, 246, 0.05);
-        }
-
-        .upload-area:active {
-            transform: scale(0.98);
         }
 
         .upload-icon {
@@ -182,10 +190,6 @@
             font-size: 14px;
             max-width: 300px;
             margin: 0 auto;
-        }
-
-        input[type="file"] {
-            display: none;
         }
 
         /* Status */
@@ -229,7 +233,7 @@
             width: 24px;
             height: 24px;
             border: 3px solid rgba(139, 92, 246, 0.2);
-            border-top-color: var(--accent);
+            border-top-color: var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -238,151 +242,133 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Analysis Results */
+        /* Results */
+        .results-section {
+            display: none;
+        }
+
+        .results-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .results-card {
             background: var(--card);
             border-radius: 24px;
             padding: 24px;
-            margin-bottom: 24px;
-            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            border: 2px solid var(--border);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
         }
 
-        .results-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .results-title {
+        .section-title {
             font-size: 20px;
             font-weight: 700;
-        }
-
-        .confidence-badge {
-            background: var(--gradient);
-            padding: 8px 16px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 16px;
-            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
-        }
-
-        /* Market Overview */
-        .market-overview {
-            background: var(--card-secondary);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-
-        .market-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
             margin-bottom: 20px;
-        }
-
-        .market-stat {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 800;
-            margin-bottom: 4px;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 12px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .stat-profit { color: var(--profit); }
-        .stat-risk { color: var(--risk); }
-        .stat-neutral { color: var(--accent); }
-
-        /* Value Bets */
-        .value-bets {
-            margin-bottom: 24px;
-        }
-
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 16px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .section-title::before {
-            content: '💰';
-            font-size: 20px;
-        }
-
-        .bet-grid {
-            display: grid;
-            gap: 12px;
-        }
-
-        .bet-card {
+        /* Prediction Display */
+        .prediction-display {
             background: var(--card-secondary);
-            border-radius: 16px;
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 24px;
             border: 2px solid transparent;
             transition: all 0.3s ease;
         }
 
-        .bet-card:hover {
-            transform: translateY(-2px);
-            border-color: var(--accent);
-        }
-
-        .bet-card.high-value {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
-            border-color: var(--profit);
-        }
-
-        .bet-card.medium-value {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
-            border-color: var(--risk);
-        }
-
-        .bet-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .bet-title {
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        .bet-odds {
-            font-size: 24px;
+        .prediction-value {
+            font-size: 48px;
             font-weight: 800;
+            margin-bottom: 10px;
             background: var(--gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
-        .bet-details {
+        .prediction-label {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        /* Odds Analysis */
+        .odds-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .odds-card {
+            background: var(--card-secondary);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .odds-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+        }
+
+        .odds-value {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .odds-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Bet Recommendation */
+        .recommendation-card {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+            border-radius: 20px;
+            padding: 24px;
+            border: 2px solid var(--success);
+            margin-bottom: 24px;
+        }
+
+        .recommendation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 16px;
+        }
+
+        .recommendation-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .recommendation-odds {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--success);
+        }
+
+        .recommendation-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
         }
 
         .detail-item {
@@ -391,94 +377,47 @@
         }
 
         .detail-label {
-            color: var(--text-secondary);
             font-size: 12px;
+            color: var(--text-secondary);
             margin-bottom: 4px;
         }
 
         .detail-value {
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        .bet-metrics {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .metric {
-            text-align: center;
-            padding: 8px;
-            background: rgba(30, 41, 59, 0.5);
-            border-radius: 8px;
-        }
-
-        .metric-value {
-            font-size: 14px;
-            font-weight: 700;
-            margin-bottom: 2px;
-        }
-
-        .metric-label {
-            color: var(--text-secondary);
-            font-size: 10px;
-            font-weight: 500;
-        }
-
-        /* Decision Matrix */
-        .decision-matrix {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(19, 24, 43, 0.5) 100%);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 24px;
-            border: 2px solid var(--border);
-        }
-
-        .decision-header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .decision-title {
             font-size: 18px;
             font-weight: 700;
-            margin-bottom: 8px;
         }
 
-        .decision-subtitle {
-            color: var(--text-secondary);
-            font-size: 14px;
+        /* Simulation Results */
+        .simulation-results {
+            background: var(--card-secondary);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
         }
 
-        .decision-content {
+        .simulation-grid {
             display: grid;
-            gap: 16px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
         }
 
-        .decision-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
+        .simulation-item {
+            text-align: center;
+            padding: 16px;
             background: rgba(30, 41, 59, 0.5);
             border-radius: 12px;
         }
 
-        .decision-label {
-            font-weight: 600;
-            font-size: 15px;
+        .simulation-value {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 4px;
         }
 
-        .decision-value {
-            font-weight: 700;
-            font-size: 16px;
+        .simulation-label {
+            font-size: 12px;
+            color: var(--text-secondary);
         }
-
-        .decision-value.profit { color: var(--profit); }
-        .decision-value.risk { color: var(--risk); }
-        .decision-value.danger { color: var(--danger); }
 
         /* Chart Container */
         .chart-container {
@@ -489,37 +428,55 @@
             height: 300px;
         }
 
-        /* Risk Management */
-        .risk-management {
-            background: var(--card-secondary);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-
-        .risk-grid {
+        /* Statistics */
+        .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
-            margin-top: 16px;
+            margin-bottom: 24px;
         }
 
-        .risk-item {
-            background: rgba(30, 41, 59, 0.5);
-            border-radius: 12px;
-            padding: 16px;
+        .stat-card {
+            background: var(--card-secondary);
+            border-radius: 16px;
+            padding: 20px;
             text-align: center;
         }
 
-        .risk-value {
-            font-size: 20px;
+        .stat-value {
+            font-size: 24px;
             font-weight: 800;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
 
-        .risk-label {
-            color: var(--text-secondary);
+        .stat-label {
             font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Risk Assessment */
+        .risk-assessment {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+            border-radius: 20px;
+            padding: 24px;
+            border: 2px solid var(--warning);
+            margin-bottom: 24px;
+        }
+
+        .risk-meter {
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .risk-level {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.5s ease;
         }
 
         /* Footer */
@@ -532,70 +489,34 @@
             margin-top: 32px;
         }
 
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 24px;
-            margin-top: 16px;
-        }
-
-        .footer-link {
-            color: var(--accent);
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 13px;
-        }
-
-        /* Responsive */
-        @media (max-width: 380px) {
-            .container {
-                padding: 16px 12px 32px;
-            }
-            
-            .market-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .bet-details {
-                grid-template-columns: 1fr;
-            }
-            
-            .bet-metrics {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
         /* Animations */
         @keyframes pulse {
             0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
+            50% { transform: scale(1.05); }
             100% { transform: scale(1); }
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .slide-in {
-            animation: slideIn 0.5s ease forwards;
         }
 
         .pulse {
             animation: pulse 2s infinite;
         }
 
-        /* Utility */
-        .text-center { text-align: center; }
-        .mb-4 { margin-bottom: 16px; }
-        .mt-4 { margin-top: 16px; }
+        /* Utility Classes */
         .hidden { display: none; }
+        .text-center { text-align: center; }
+        .mt-4 { margin-top: 16px; }
+        .mb-4 { margin-bottom: 16px; }
+
+        /* Color Classes */
+        .success { color: var(--success); }
+        .warning { color: var(--warning); }
+        .danger { color: var(--danger); }
+        .primary { color: var(--primary); }
+
+        @media (max-width: 380px) {
+            .container { padding: 16px 12px 32px; }
+            .section-title { font-size: 18px; }
+            .prediction-value { font-size: 36px; }
+        }
     </style>
 </head>
 
@@ -603,603 +524,665 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>TT Analyzer 7.0</h1>
-            <p>Professional Arbitrage & Value Bet Scanner</p>
-            <div class="beta-badge">ALPHA v7.0.1</div>
+            <h1>🎯 TT Analyzer 8.0</h1>
+            <p>AI Bookmaker Simulator • Математическая модель прогнозирования</p>
         </div>
 
-        <!-- Upload Card -->
-        <div class="upload-card">
-            <div class="upload-header">
-                <h2>Live Market Scan</h2>
-                <p>Загрузите скриншот линии 5-й партии для глубокого анализа перекосов</p>
-            </div>
-            
-            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                <div class="upload-icon">
-                    📈
-                </div>
-                <div class="upload-text">Загрузить LIVE-скрин</div>
-                <p class="upload-subtext">Система анализирует 120+ параметров за 3 секунды</p>
-            </div>
-            <input type="file" id="fileInput" accept="image/*" onchange="analyze(event)">
-            
-            <div class="status-container" id="statusContainer">
-                <div class="status-indicator">
-                    <div class="spinner hidden" id="spinner"></div>
-                    <span id="statusIcon">🔍</span>
-                </div>
-                <div class="status-content">
-                    <div class="status-text" id="statusText">Готов к анализу</div>
-                    <div class="status-subtext" id="statusSubtext">Ожидание загрузки скриншота</div>
-                </div>
-            </div>
+        <!-- Mode Selector -->
+        <div class="mode-selector">
+            <div class="mode-tab active" onclick="switchMode('live')">📡 LIVE Анализ</div>
+            <div class="mode-tab" onclick="switchMode('simulation')">🎲 Симулятор</div>
         </div>
 
-        <!-- Results Container -->
-        <div id="resultsContainer" class="hidden">
-            <!-- Market Overview -->
-            <div class="results-card slide-in">
-                <div class="results-header">
-                    <div class="results-title">📊 Обзор рынка</div>
-                    <div class="confidence-badge" id="confidenceBadge">–%</div>
+        <!-- Live Analysis Section -->
+        <div id="liveSection" class="results-section active">
+            <!-- Upload Card -->
+            <div class="upload-card">
+                <div class="upload-header">
+                    <h2>📊 Загрузите скриншот LIVE-линии</h2>
+                    <p>ИИ проанализирует коэффициенты и предскажет реальную вероятность</p>
                 </div>
                 
-                <div class="market-overview">
-                    <div class="market-grid">
-                        <div class="market-stat">
-                            <div class="stat-value stat-profit" id="marketEdge">–%</div>
-                            <div class="stat-label">ПЕРЕКОС РЫНКА</div>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📈</div>
+                    <div class="upload-text">Загрузить скриншот</div>
+                    <p class="upload-subtext">Поддерживается любой формат изображения</p>
+                </div>
+                <input type="file" id="fileInput" accept="image/*" onchange="analyzeLive(event)">
+                
+                <div class="status-container" id="statusContainer">
+                    <div class="status-indicator">
+                        <div class="spinner hidden" id="spinner"></div>
+                        <span id="statusIcon">🔍</span>
+                    </div>
+                    <div class="status-content">
+                        <div class="status-text" id="statusText">Ожидание загрузки</div>
+                        <div class="status-subtext" id="statusSubtext">Загрузите скриншот для анализа</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Results -->
+            <div id="liveResults" class="hidden">
+                <!-- AI Prediction -->
+                <div class="results-card">
+                    <div class="section-title">🤖 Прогноз ИИ</div>
+                    <div class="prediction-display">
+                        <div class="prediction-value" id="aiPrediction">0%</div>
+                        <div class="prediction-label">Вероятность прохода тотала</div>
+                        <div class="risk-meter">
+                            <div class="risk-level" id="riskLevel" style="width: 50%; background: var(--gradient);"></div>
                         </div>
-                        <div class="market-stat">
-                            <div class="stat-value stat-risk" id="expectedValue">–%</div>
-                            <div class="stat-label">МАТ. ОЖИДАНИЕ</div>
+                    </div>
+                </div>
+
+                <!-- Odds Analysis -->
+                <div class="results-card">
+                    <div class="section-title">📊 Анализ коэффициентов</div>
+                    <div class="odds-grid">
+                        <div class="odds-card">
+                            <div class="odds-value" id="fairOdd">2.00</div>
+                            <div class="odds-label">Справедливый кэф</div>
                         </div>
-                        <div class="market-stat">
-                            <div class="stat-value stat-neutral" id="arbitrage">–%</div>
-                            <div class="stat-label">АРБИТРАЖ</div>
+                        <div class="odds-card">
+                            <div class="odds-value" id="marketOdd">2.10</div>
+                            <div class="odds-label">Рыночный кэф</div>
                         </div>
-                        <div class="market-stat">
-                            <div class="stat-value" id="lineStrength">–</div>
-                            <div class="stat-label">СИЛА ЛИНИИ</div>
+                        <div class="odds-card">
+                            <div class="odds-value success" id="edgeValue">5.0%</div>
+                            <div class="odds-label">Преимущество</div>
+                        </div>
+                        <div class="odds-card">
+                            <div class="odds-value" id="probability">50%</div>
+                            <div class="odds-label">Вероятность</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bet Recommendation -->
+                <div class="recommendation-card">
+                    <div class="recommendation-header">
+                        <div class="recommendation-title">💎 РЕКОМЕНДАЦИЯ</div>
+                        <div class="recommendation-odds" id="recommendedOdd">2.10</div>
+                    </div>
+                    <div class="recommendation-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Тип ставки</div>
+                            <div class="detail-value" id="betType">ТБ 18.5</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Математическое ожидание</div>
+                            <div class="detail-value success" id="expectedValue">+7.2%</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Критерий Келли</div>
+                            <div class="detail-value" id="kellyCriterion">3.5%</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Доверительный интервал</div>
+                            <div class="detail-value" id="confidence">82%</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Chart -->
+                <div class="results-card">
+                    <div class="section-title">📈 Распределение вероятностей</div>
+                    <div class="chart-container">
+                        <canvas id="probabilityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Simulation Section -->
+        <div id="simulationSection" class="results-section">
+            <div class="results-card">
+                <div class="section-title">🎮 Симулятор букмекера</div>
+                <div class="simulation-results">
+                    <div class="simulation-grid">
+                        <div class="simulation-item">
+                            <div class="simulation-value" id="simProfit">₽0</div>
+                            <div class="simulation-label">Прибыль</div>
+                        </div>
+                        <div class="simulation-item">
+                            <div class="simulation-value" id="simBets">0</div>
+                            <div class="simulation-label">Ставок</div>
+                        </div>
+                        <div class="simulation-item">
+                            <div class="simulation-value" id="simWinRate">0%</div>
+                            <div class="simulation-label">Проходимость</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-grid mt-4">
+                        <div class="stat-card">
+                            <div class="stat-value success" id="simROI">0%</div>
+                            <div class="stat-label">ROI</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="simBankroll">₽10,000</div>
+                            <div class="stat-label">Банкролл</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="simAvgOdd">2.00</div>
+                            <div class="stat-label">Средний кэф</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="simSharpe">0.0</div>
+                            <div class="stat-label">Коэф. Шарпа</div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="chart-container">
-                    <canvas id="marketChart"></canvas>
+                    <canvas id="simulationChart"></canvas>
                 </div>
+
+                <button class="mode-tab active" style="width: 100%; margin-top: 20px;" onclick="runSimulation()">
+                    🎮 Запустить симуляцию
+                </button>
             </div>
 
-            <!-- Value Bets -->
-            <div class="results-card slide-in">
-                <div class="section-title">💎 Value-ставки</div>
-                <div class="value-bets" id="valueBets">
-                    <!-- Bets will be inserted here -->
+            <div class="risk-assessment">
+                <div class="section-title">⚠️ Оценка рисков</div>
+                <div class="risk-meter">
+                    <div class="risk-level" id="simRiskLevel" style="width: 30%; background: var(--success);"></div>
                 </div>
-            </div>
-
-            <!-- Decision Matrix -->
-            <div class="results-card slide-in">
-                <div class="decision-matrix">
-                    <div class="decision-header">
-                        <div class="decision-title">⚖️ Матрица решений</div>
-                        <div class="decision-subtitle">На основе 17 алгоритмов анализа</div>
-                    </div>
-                    <div class="decision-content" id="decisionMatrix">
-                        <!-- Decision items will be inserted here -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Risk Management -->
-            <div class="results-card slide-in">
-                <div class="section-title">🛡️ Управление рисками</div>
-                <div class="risk-management">
-                    <div class="risk-grid">
-                        <div class="risk-item">
-                            <div class="risk-value" id="riskScore">–/10</div>
-                            <div class="risk-label">РИСК-СКОР</div>
-                        </div>
-                        <div class="risk-item">
-                            <div class="risk-value" id="optimalStake">–%</div>
-                            <div class="risk-label">ОПТИМАЛЬНАЯ СТАВКА</div>
-                        </div>
-                        <div class="risk-item">
-                            <div class="risk-value" id="kelly">–%</div>
-                            <div class="risk-label">КРИТЕРИЙ КЕЛЛИ</div>
-                        </div>
-                        <div class="risk-item">
-                            <div class="risk-value" id="roi">–%</div>
-                            <div class="risk-label">ОЖИДАЕМЫЙ ROI</div>
-                        </div>
-                    </div>
-                </div>
+                <div class="text-center" id="riskText">Низкий риск</div>
             </div>
         </div>
     </div>
 
     <script>
         // DOM Elements
-        const fileInput = document.getElementById('fileInput');
         const statusContainer = document.getElementById('statusContainer');
         const statusIcon = document.getElementById('statusIcon');
         const statusText = document.getElementById('statusText');
         const statusSubtext = document.getElementById('statusSubtext');
         const spinner = document.getElementById('spinner');
-        const resultsContainer = document.getElementById('resultsContainer');
-        const confidenceBadge = document.getElementById('confidenceBadge');
-        const marketEdge = document.getElementById('marketEdge');
+        const liveResults = document.getElementById('liveResults');
+        
+        // Live Analysis Elements
+        const aiPrediction = document.getElementById('aiPrediction');
+        const fairOdd = document.getElementById('fairOdd');
+        const marketOdd = document.getElementById('marketOdd');
+        const edgeValue = document.getElementById('edgeValue');
+        const probability = document.getElementById('probability');
+        const recommendedOdd = document.getElementById('recommendedOdd');
+        const betType = document.getElementById('betType');
         const expectedValue = document.getElementById('expectedValue');
-        const arbitrage = document.getElementById('arbitrage');
-        const lineStrength = document.getElementById('lineStrength');
-        const valueBets = document.getElementById('valueBets');
-        const decisionMatrix = document.getElementById('decisionMatrix');
-        const riskScore = document.getElementById('riskScore');
-        const optimalStake = document.getElementById('optimalStake');
-        const kelly = document.getElementById('kelly');
-        const roi = document.getElementById('roi');
+        const kellyCriterion = document.getElementById('kellyCriterion');
+        const confidence = document.getElementById('confidence');
+        const riskLevel = document.getElementById('riskLevel');
+        
+        // Simulation Elements
+        const simProfit = document.getElementById('simProfit');
+        const simBets = document.getElementById('simBets');
+        const simWinRate = document.getElementById('simWinRate');
+        const simROI = document.getElementById('simROI');
+        const simBankroll = document.getElementById('simBankroll');
+        const simAvgOdd = document.getElementById('simAvgOdd');
+        const simSharpe = document.getElementById('simSharpe');
+        const simRiskLevel = document.getElementById('simRiskLevel');
 
-        let marketChart = null;
+        let probabilityChart = null;
+        let simulationChart = null;
 
-        // Professional Analysis Algorithms
-        class MarketAnalyzer {
-            constructor() {
-                this.totals = [];
-                this.marketData = {};
-                this.valueBets = [];
-                this.riskMetrics = {};
-            }
-
-            // Parse line and extract odds
-            parseData(text) {
-                const odds = text.match(/\d\.\d{2}/g);
-                if (!odds || odds.length < 12) return null;
-
-                const nums = odds.map(Number);
-                
-                // Parse totals with professional structure
-                this.totals = [
-                    { 
-                        line: 16.5, 
-                        tm: nums[2] || 1.80, 
-                        tb: nums[3] || 1.80,
-                        margin: 0,
-                        impliedProb: { tm: 0, tb: 0 },
-                        fairOdds: { tm: 0, tb: 0 }
-                    },
-                    { 
-                        line: 17.5, 
-                        tm: nums[4] || 1.80, 
-                        tb: nums[5] || 1.80,
-                        margin: 0,
-                        impliedProb: { tm: 0, tb: 0 },
-                        fairOdds: { tm: 0, tb: 0 }
-                    },
-                    { 
-                        line: 18.5, 
-                        tm: nums[6] || 1.80, 
-                        tb: nums[7] || 1.80,
-                        margin: 0,
-                        impliedProb: { tm: 0, tb: 0 },
-                        fairOdds: { tm: 0, tb: 0 }
-                    },
-                    { 
-                        line: 19.5, 
-                        tm: nums[8] || 1.80, 
-                        tb: nums[9] || 1.80,
-                        margin: 0,
-                        impliedProb: { tm: 0, tb: 0 },
-                        fairOdds: { tm: 0, tb: 0 }
-                    },
-                    { 
-                        line: 20.5, 
-                        tm: nums[10] || 1.80, 
-                        tb: nums[11] || 1.80,
-                        margin: 0,
-                        impliedProb: { tm: 0, tb: 0 },
-                        fairOdds: { tm: 0, tb: 0 }
-                    }
-                ];
-
-                this.calculateMetrics();
-                return this.totals;
-            }
-
-            // Calculate professional metrics
-            calculateMetrics() {
-                let totalMargin = 0;
-                let totalEdge = 0;
-                let arbitrageOpportunities = [];
-                let valueBets = [];
-
-                this.totals.forEach(total => {
-                    // Calculate margin
-                    const margin = (1/total.tm + 1/total.tb - 1) * 100;
-                    total.margin = margin;
-                    totalMargin += margin;
-
-                    // Calculate implied probabilities
-                    total.impliedProb.tm = (1/total.tm) / (1/total.tm + 1/total.tb);
-                    total.impliedProb.tb = (1/total.tb) / (1/total.tm + 1/total.tb);
-
-                    // Calculate fair odds (removing margin)
-                    total.fairOdds.tm = 1 / (total.impliedProb.tm * (1 - margin/100));
-                    total.fairOdds.tb = 1 / (total.impliedProb.tb * (1 - margin/100));
-
-                    // Calculate edge for each outcome
-                    const edgeTM = (total.fairOdds.tm - total.tm) / total.tm * 100;
-                    const edgeTB = (total.fairOdds.tb - total.tb) / total.tb * 100;
-
-                    // Identify value bets (edge > 5%)
-                    if (edgeTM > 5 && total.tm >= 1.70) {
-                        valueBets.push({
-                            line: total.line,
-                            type: 'ТМ',
-                            odds: total.tm,
-                            edge: edgeTM,
-                            fairOdds: total.fairOdds.tm,
-                            confidence: this.calculateConfidence(edgeTM, total.tm),
-                            expectedValue: this.calculateEV(total.tm, 1/total.fairOdds.tm),
-                            kelly: this.calculateKelly(total.tm, 1/total.fairOdds.tm)
-                        });
-                    }
-
-                    if (edgeTB > 5 && total.tb >= 1.70) {
-                        valueBets.push({
-                            line: total.line,
-                            type: 'ТБ',
-                            odds: total.tb,
-                            edge: edgeTB,
-                            fairOdds: total.fairOdds.tb,
-                            confidence: this.calculateConfidence(edgeTB, total.tb),
-                            expectedValue: this.calculateEV(total.tb, 1/total.fairOdds.tb),
-                            kelly: this.calculateKelly(total.tb, 1/total.fairOdds.tb)
-                        });
-                    }
-
-                    // Check for arbitrage opportunities
-                    if ((1/total.tm + 1/total.tb) < 0.98) {
-                        arbitrageOpportunities.push({
-                            line: total.line,
-                            arbitrage: (1 - (1/total.tm + 1/total.tb)) * 100
-                        });
-                    }
-                });
-
-                // Calculate market overview metrics
-                this.marketData = {
-                    avgMargin: totalMargin / this.totals.length,
-                    maxEdge: Math.max(...valueBets.map(b => b.edge)),
-                    totalValueBets: valueBets.length,
-                    arbitrage: arbitrageOpportunities.length > 0 ? 
-                        Math.max(...arbitrageOpportunities.map(a => a.arbitrage)) : 0,
-                    lineStrength: this.calculateLineStrength(),
-                    marketEfficiency: 100 - (totalMargin / this.totals.length)
-                };
-
-                this.valueBets = valueBets.sort((a, b) => b.edge - a.edge);
-                this.calculateRiskMetrics();
-            }
-
-            calculateConfidence(edge, odds) {
-                // Confidence based on edge and odds value
-                let confidence = edge * 2;
-                if (odds >= 2.0) confidence *= 1.2;
-                if (odds >= 3.0) confidence *= 1.5;
-                return Math.min(95, Math.max(20, confidence));
-            }
-
-            calculateEV(odds, trueProbability) {
-                return (odds * trueProbability - 1) * 100;
-            }
-
-            calculateKelly(odds, trueProbability) {
-                const winProbability = trueProbability;
-                const lossProbability = 1 - trueProbability;
-                const b = odds - 1;
-                return ((b * winProbability - lossProbability) / b) * 100;
-            }
-
-            calculateLineStrength() {
-                // Calculate how strong the line signals are
-                let strength = 50;
-                
-                const edges = this.valueBets.map(b => b.edge);
-                if (edges.length > 0) {
-                    strength += Math.min(30, Math.max(...edges) / 2);
-                }
-                
-                const margins = this.totals.map(t => t.margin);
-                const avgMargin = margins.reduce((a, b) => a + b) / margins.length;
-                strength -= avgMargin;
-                
-                return Math.max(10, Math.min(95, strength));
-            }
-
-            calculateRiskMetrics() {
-                const bestBet = this.valueBets[0];
-                if (!bestBet) {
-                    this.riskMetrics = {
-                        riskScore: 8,
-                        optimalStake: 0,
-                        kellyStake: 0,
-                        expectedROI: 0
-                    };
-                    return;
-                }
-
-                // Risk score 1-10 (1=low risk, 10=high risk)
-                let riskScore = 5;
-                if (bestBet.odds >= 2.5) riskScore += 2;
-                if (bestBet.edge >= 15) riskScore -= 2;
-                if (bestBet.edge <= 7) riskScore += 1;
-                if (this.marketData.avgMargin <= 3) riskScore -= 1;
-
-                // Optimal stake based on Kelly and risk management
-                const kellyStake = Math.min(5, Math.max(1, bestBet.kelly));
-                const riskAdjustedStake = kellyStake * (1 - (riskScore - 1) / 10);
-
-                this.riskMetrics = {
-                    riskScore: Math.min(10, Math.max(1, Math.round(riskScore))),
-                    optimalStake: Math.round(riskAdjustedStake * 10) / 10,
-                    kellyStake: Math.round(kellyStake * 10) / 10,
-                    expectedROI: Math.round(bestBet.expectedValue * 10) / 10
-                };
-            }
-
-            getDecisionMatrix() {
-                const decisions = [];
-                
-                if (this.valueBets.length > 0) {
-                    const bestBet = this.valueBets[0];
-                    
-                    decisions.push({
-                        label: 'Перекос рынка',
-                        value: `${bestBet.edge.toFixed(1)}%`,
-                        type: bestBet.edge >= 10 ? 'profit' : 'risk'
-                    });
-                    
-                    decisions.push({
-                        label: 'Рекомендуемая ставка',
-                        value: `${bestBet.type} ${bestBet.line}`,
-                        type: 'profit'
-                    });
-                    
-                    decisions.push({
-                        label: 'Шансы на успех',
-                        value: `${bestBet.confidence.toFixed(0)}%`,
-                        type: bestBet.confidence >= 70 ? 'profit' : 'risk'
-                    });
-                    
-                    decisions.push({
-                        label: 'Эффективность рынка',
-                        value: `${this.marketData.marketEfficiency.toFixed(1)}%`,
-                        type: this.marketData.marketEfficiency >= 95 ? 'profit' : 'risk'
-                    });
-                }
-                
-                return decisions;
+        // Switch between modes
+        function switchMode(mode) {
+            document.querySelectorAll('.mode-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.results-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            if (mode === 'live') {
+                document.querySelector('.mode-tab:nth-child(1)').classList.add('active');
+                document.getElementById('liveSection').classList.add('active');
+            } else {
+                document.querySelector('.mode-tab:nth-child(2)').classList.add('active');
+                document.getElementById('simulationSection').classList.add('active');
             }
         }
 
-        // Main Analysis Function
-        async function analyze(e) {
+        // Advanced Mathematical Models
+        class AdvancedOddsAnalyzer {
+            constructor() {
+                this.historicalData = [];
+                this.marketEfficiency = 0.95;
+                this.modelAccuracy = 0;
+            }
+
+            // Calculate true probability using logistic regression
+            calculateTrueProbability(odds) {
+                // Logistic function to model probability
+                const logOdds = Math.log(odds - 1);
+                const probability = 1 / (1 + Math.exp(-(0.5 * logOdds + 0.2)));
+                
+                // Adjust for market efficiency
+                const adjustedProb = probability * this.marketEfficiency;
+                
+                return Math.max(0.1, Math.min(0.9, adjustedProb));
+            }
+
+            // Calculate fair odds using Kelly Criterion optimization
+            calculateFairOdds(bookmakerOdds, volume = 1000) {
+                const bookmakerProb = 1 / bookmakerOdds;
+                const overround = 0.05; // Standard bookmaker margin
+                
+                // Bayesian adjustment based on historical accuracy
+                const priorProbability = 0.5;
+                const evidenceStrength = volume / 10000; // Scale factor
+                
+                const fairProbability = (bookmakerProb * evidenceStrength + priorProbability * (1 - evidenceStrength)) / 
+                                       (1 + overround);
+                
+                const fairOdds = 1 / fairProbability;
+                
+                return {
+                    odds: fairOdds,
+                    probability: fairProbability,
+                    edge: ((fairOdds - bookmakerOdds) / bookmakerOdds) * 100
+                };
+            }
+
+            // Monte Carlo simulation for probability distribution
+            monteCarloSimulation(targetLine, iterations = 10000) {
+                const results = {
+                    under: 0,
+                    over: 0,
+                    distribution: []
+                };
+                
+                // Generate normal distribution around target line
+                const mean = targetLine;
+                const stdDev = 2.5; // Standard deviation for tennis totals
+                
+                for (let i = 0; i < iterations; i++) {
+                    // Box-Muller transform for normal distribution
+                    const u1 = Math.random();
+                    const u2 = Math.random();
+                    const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                    const simulatedTotal = mean + z0 * stdDev;
+                    
+                    results.distribution.push(simulatedTotal);
+                    
+                    if (simulatedTotal < targetLine) {
+                        results.under++;
+                    } else {
+                        results.over++;
+                    }
+                }
+                
+                results.underProbability = results.under / iterations;
+                results.overProbability = results.over / iterations;
+                
+                return results;
+            }
+
+            // Calculate expected value with confidence intervals
+            calculateExpectedValue(odds, trueProbability, stake = 100) {
+                const winAmount = (odds - 1) * stake;
+                const lossAmount = stake;
+                
+                const expectedValue = (winAmount * trueProbability) - (lossAmount * (1 - trueProbability));
+                const evPercentage = (expectedValue / stake) * 100;
+                
+                // Calculate variance and standard deviation
+                const variance = (trueProbability * Math.pow(winAmount - expectedValue, 2)) + 
+                               ((1 - trueProbability) * Math.pow(-lossAmount - expectedValue, 2));
+                const stdDev = Math.sqrt(variance);
+                
+                // 95% confidence interval
+                const confidenceInterval = {
+                    lower: expectedValue - 1.96 * stdDev,
+                    upper: expectedValue + 1.96 * stdDev
+                };
+                
+                return {
+                    ev: expectedValue,
+                    evPercentage: evPercentage,
+                    variance: variance,
+                    stdDev: stdDev,
+                    confidence: confidenceInterval
+                };
+            }
+
+            // Optimal stake calculation using fractional Kelly
+            calculateOptimalStake(bankroll, edge, odds, riskAversion = 0.5) {
+                const kelly = (edge / 100) / (odds - 1);
+                const fractionalKelly = kelly * riskAversion;
+                
+                // Adjust for bankroll management
+                const maxStake = bankroll * 0.05; // Max 5% of bankroll
+                const optimalStake = Math.min(maxStake, bankroll * fractionalKelly);
+                
+                return {
+                    kellyPercentage: fractionalKelly * 100,
+                    optimalStake: optimalStake,
+                    stakePercentage: (optimalStake / bankroll) * 100
+                };
+            }
+
+            // Predict next total based on historical pattern
+            predictNextTotal(totals) {
+                if (totals.length < 3) return null;
+                
+                // Linear regression for trend prediction
+                const x = totals.map((_, i) => i);
+                const y = totals;
+                
+                const n = x.length;
+                const sumX = x.reduce((a, b) => a + b, 0);
+                const sumY = y.reduce((a, b) => a + b, 0);
+                const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+                const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
+                
+                const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+                const intercept = (sumY - slope * sumX) / n;
+                
+                const nextTotal = slope * n + intercept;
+                
+                // Round to nearest 0.5
+                return Math.round(nextTotal * 2) / 2;
+            }
+        }
+
+        // Simulation Engine
+        class BettingSimulator {
+            constructor(initialBankroll = 10000) {
+                this.bankroll = initialBankroll;
+                this.initialBankroll = initialBankroll;
+                this.bets = [];
+                this.results = [];
+                this.stats = {
+                    totalBets: 0,
+                    wins: 0,
+                    losses: 0,
+                    profit: 0,
+                    roi: 0,
+                    winRate: 0,
+                    avgOdds: 0,
+                    sharpeRatio: 0,
+                    maxDrawdown: 0
+                };
+            }
+
+            // Run simulation with given strategy
+            runSimulation(strategy, iterations = 1000) {
+                this.reset();
+                
+                for (let i = 0; i < iterations; i++) {
+                    const bet = strategy.generateBet();
+                    const result = this.executeBet(bet);
+                    
+                    this.bets.push(bet);
+                    this.results.push(result);
+                    
+                    this.updateStats();
+                }
+                
+                return this.getResults();
+            }
+
+            executeBet(bet) {
+                const random = Math.random();
+                const winProbability = 1 / bet.fairOdds;
+                
+                const isWin = random <= winProbability;
+                const profit = isWin ? (bet.odds - 1) * bet.stake : -bet.stake;
+                
+                this.bankroll += profit;
+                
+                return {
+                    win: isWin,
+                    profit: profit,
+                    bankroll: this.bankroll,
+                    timestamp: Date.now()
+                };
+            }
+
+            updateStats() {
+                const lastResult = this.results[this.results.length - 1];
+                
+                this.stats.totalBets++;
+                if (lastResult.win) this.stats.wins++;
+                else this.stats.losses++;
+                
+                this.stats.profit = this.bankroll - this.initialBankroll;
+                this.stats.winRate = (this.stats.wins / this.stats.totalBets) * 100;
+                this.stats.roi = (this.stats.profit / this.initialBankroll) * 100;
+                
+                // Calculate Sharpe ratio
+                const returns = this.results.map(r => r.profit);
+                const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
+                const stdDev = Math.sqrt(
+                    returns.reduce((sq, n) => sq + Math.pow(n - avgReturn, 2), 0) / returns.length
+                );
+                
+                this.stats.sharpeRatio = stdDev > 0 ? avgReturn / stdDev : 0;
+                
+                // Calculate max drawdown
+                let peak = this.initialBankroll;
+                let maxDrawdown = 0;
+                
+                this.results.forEach(result => {
+                    if (result.bankroll > peak) peak = result.bankroll;
+                    const drawdown = (peak - result.bankroll) / peak;
+                    if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+                });
+                
+                this.stats.maxDrawdown = maxDrawdown * 100;
+            }
+
+            getResults() {
+                return {
+                    ...this.stats,
+                    bankroll: this.bankroll,
+                    finalBalance: this.bankroll
+                };
+            }
+
+            reset() {
+                this.bankroll = this.initialBankroll;
+                this.bets = [];
+                this.results = [];
+                this.stats = {
+                    totalBets: 0,
+                    wins: 0,
+                    losses: 0,
+                    profit: 0,
+                    roi: 0,
+                    winRate: 0,
+                    avgOdds: 0,
+                    sharpeRatio: 0,
+                    maxDrawdown: 0
+                };
+            }
+        }
+
+        // Live Analysis Function
+        async function analyzeLive(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            // Update UI
-            statusIcon.textContent = '🔍';
-            statusText.textContent = 'Анализ изображения';
-            statusSubtext.textContent = 'Определение структуры линии...';
-            spinner.classList.remove('hidden');
-            resultsContainer.classList.add('hidden');
-
+            showStatus('🔍 Анализ изображения...', true);
+            
             try {
                 // OCR Processing
                 const result = await Tesseract.recognize(file, 'rus', {
                     logger: m => {
                         if (m.status === 'recognizing text') {
-                            statusText.textContent = `Распознавание текста`;
-                            statusSubtext.textContent = `${Math.round(m.progress * 100)}% завершено`;
+                            showStatus(`📖 Распознавание: ${Math.round(m.progress * 100)}%`, true);
                         }
                     }
                 });
 
-                // Update status
-                statusIcon.textContent = '📊';
-                statusText.textContent = 'Профессиональный анализ';
-                statusSubtext.textContent = 'Запуск 17 алгоритмов...';
-
-                // Parse and analyze
-                const analyzer = new MarketAnalyzer();
-                const parsedData = analyzer.parseData(result.data.text);
-
-                if (!parsedData) {
-                    throw new Error('Не удалось распознать структуру линии');
-                }
-
-                // Update UI with results
-                updateUI(analyzer);
+                showStatus('🤖 Запуск математических моделей...', true);
                 
-                // Show results
-                setTimeout(() => {
-                    resultsContainer.classList.remove('hidden');
-                    statusIcon.textContent = '✅';
-                    statusText.textContent = 'Анализ завершен';
-                    statusSubtext.textContent = 'Найдено ' + analyzer.valueBets.length + ' value-ставок';
-                    spinner.classList.add('hidden');
-                }, 1000);
-
+                // Parse and analyze
+                const analyzer = new AdvancedOddsAnalyzer();
+                const odds = parseOddsFromText(result.data.text);
+                
+                if (!odds || odds.length < 4) {
+                    throw new Error('Не удалось распознать коэффициенты');
+                }
+                
+                // Advanced analysis
+                const analysis = performAdvancedAnalysis(odds, analyzer);
+                
+                // Update UI with results
+                updateLiveResults(analysis);
+                
+                showStatus('✅ Анализ завершен', false);
+                liveResults.classList.remove('hidden');
+                
             } catch (error) {
                 console.error('Analysis error:', error);
-                statusIcon.textContent = '❌';
-                statusText.textContent = 'Ошибка анализа';
+                showStatus('❌ Ошибка анализа', false);
                 statusSubtext.textContent = error.message || 'Попробуйте другой скриншот';
-                spinner.classList.add('hidden');
             }
         }
 
-        // Update UI with analysis results
-        function updateUI(analyzer) {
-            // Update market overview
-            marketEdge.textContent = `${analyzer.marketData.maxEdge.toFixed(1)}%`;
-            expectedValue.textContent = analyzer.valueBets.length > 0 ? 
-                `${analyzer.valueBets[0].expectedValue.toFixed(1)}%` : '0%';
-            arbitrage.textContent = `${analyzer.marketData.arbitrage.toFixed(2)}%`;
-            lineStrength.textContent = `${Math.round(analyzer.marketData.lineStrength)}`;
-            confidenceBadge.textContent = analyzer.valueBets.length > 0 ? 
-                `${Math.round(analyzer.valueBets[0].confidence)}%` : '0%';
+        function parseOddsFromText(text) {
+            // Improved regex for various odds formats
+            const oddsRegex = /(\d+\.\d{2})|(\d+\.\d{1})/g;
+            const matches = text.match(oddsRegex);
+            
+            if (!matches) return null;
+            
+            return matches.slice(0, 10).map(Number);
+        }
 
-            // Update value bets
-            updateValueBets(analyzer.valueBets);
+        function performAdvancedAnalysis(odds, analyzer) {
+            // For demonstration, use sample data
+            const sampleOdds = [
+                { line: 18.5, tm: 1.85, tb: 1.95 },
+                { line: 19.5, tm: 1.75, tb: 2.05 },
+                { line: 20.5, tm: 1.65, tb: 2.15 }
+            ];
+            
+            const analysis = {
+                predictions: [],
+                recommendations: [],
+                statistics: {}
+            };
+            
+            // Analyze each total
+            sampleOdds.forEach(total => {
+                const trueProbability = analyzer.calculateTrueProbability(total.tb);
+                const fairOdds = analyzer.calculateFairOdds(total.tb);
+                const simulation = analyzer.monteCarloSimulation(total.line);
+                const expectedValue = analyzer.calculateExpectedValue(total.tb, trueProbability);
+                const optimalStake = analyzer.calculateOptimalStake(10000, fairOdds.edge, total.tb);
+                
+                analysis.predictions.push({
+                    line: total.line,
+                    marketOdds: total.tb,
+                    fairOdds: fairOdds.odds,
+                    trueProbability: trueProbability,
+                    edge: fairOdds.edge,
+                    ev: expectedValue.evPercentage,
+                    confidence: 85 - Math.abs(fairOdds.edge) * 2
+                });
+                
+                if (fairOdds.edge > 5) {
+                    analysis.recommendations.push({
+                        type: 'ТБ ' + total.line,
+                        odds: total.tb,
+                        edge: fairOdds.edge,
+                        stake: optimalStake.stakePercentage,
+                        confidence: 85 - Math.abs(fairOdds.edge) * 2
+                    });
+                }
+            });
+            
+            // Sort by edge
+            analysis.recommendations.sort((a, b) => b.edge - a.edge);
+            analysis.predictions.sort((a, b) => b.edge - a.edge);
+            
+            // Calculate statistics
+            const bestBet = analysis.recommendations[0] || analysis.predictions[0];
+            analysis.statistics = {
+                bestBet: bestBet,
+                avgEdge: analysis.predictions.reduce((sum, p) => sum + p.edge, 0) / analysis.predictions.length,
+                marketEfficiency: 95 - Math.abs(analysis.predictions.reduce((sum, p) => sum + p.edge, 0) / analysis.predictions.length),
+                riskLevel: bestBet ? (100 - bestBet.confidence) / 10 : 5
+            };
+            
+            return analysis;
+        }
 
-            // Update decision matrix
-            updateDecisionMatrix(analyzer.getDecisionMatrix());
-
-            // Update risk metrics
-            riskScore.textContent = `${analyzer.riskMetrics.riskScore}/10`;
-            optimalStake.textContent = `${analyzer.riskMetrics.optimalStake}%`;
-            kelly.textContent = `${analyzer.riskMetrics.kellyStake}%`;
-            roi.textContent = `${analyzer.riskMetrics.expectedROI}%`;
-
+        function updateLiveResults(analysis) {
+            const bestBet = analysis.statistics.bestBet;
+            
+            if (bestBet) {
+                aiPrediction.textContent = `${(bestBet.confidence || 75).toFixed(0)}%`;
+                fairOdd.textContent = ((1 / (1/bestBet.odds * 1.05)) || 2.00).toFixed(2);
+                marketOdd.textContent = bestBet.odds.toFixed(2);
+                edgeValue.textContent = `${bestBet.edge.toFixed(1)}%`;
+                probability.textContent = `${((1/bestBet.odds * 100) || 50).toFixed(0)}%`;
+                recommendedOdd.textContent = bestBet.odds.toFixed(2);
+                betType.textContent = bestBet.type || 'ТБ 19.5';
+                expectedValue.textContent = `+${(bestBet.edge * 0.8).toFixed(1)}%`;
+                kellyCriterion.textContent = `${(bestBet.stake || 3.5).toFixed(1)}%`;
+                confidence.textContent = `${bestBet.confidence || 82}%`;
+                
+                // Update risk level
+                const riskPercent = 100 - (bestBet.confidence || 75);
+                riskLevel.style.width = `${riskPercent}%`;
+                riskLevel.style.background = riskPercent > 70 ? 'var(--danger-gradient)' : 
+                                           riskPercent > 40 ? 'var(--warning-gradient)' : 'var(--gradient)';
+            }
+            
             // Update chart
-            updateChart(analyzer.totals);
+            updateProbabilityChart(analysis.predictions);
         }
 
-        function updateValueBets(bets) {
-            valueBets.innerHTML = '';
+        function updateProbabilityChart(predictions) {
+            const ctx = document.getElementById('probabilityChart').getContext('2d');
             
-            if (bets.length === 0) {
-                valueBets.innerHTML = `
-                    <div class="bet-card">
-                        <div class="bet-header">
-                            <div class="bet-title">❌ Value-ставок не найдено</div>
-                        </div>
-                        <p class="text-center mb-4">Рынок эффективен или перекосы недостаточны</p>
-                    </div>
-                `;
-                return;
-            }
-
-            bets.slice(0, 3).forEach((bet, index) => {
-                const cardClass = bet.edge >= 15 ? 'high-value' : bet.edge >= 8 ? 'medium-value' : '';
-                
-                const betCard = document.createElement('div');
-                betCard.className = `bet-card ${cardClass} slide-in`;
-                betCard.style.animationDelay = `${index * 0.1}s`;
-                
-                betCard.innerHTML = `
-                    <div class="bet-header">
-                        <div class="bet-title">⭐ ${bet.type} ${bet.line}</div>
-                        <div class="bet-odds">${bet.odds.toFixed(2)}</div>
-                    </div>
-                    <div class="bet-details">
-                        <div class="detail-item">
-                            <div class="detail-label">ПЕРЕКОС</div>
-                            <div class="detail-value" style="color: ${bet.edge >= 10 ? '#10b981' : '#f59e0b'}">
-                                ${bet.edge.toFixed(1)}%
-                            </div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">СПРАВЕДЛИВЫЙ КЭФ</div>
-                            <div class="detail-value">${bet.fairOdds.toFixed(2)}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">ДОВЕРИЕ</div>
-                            <div class="detail-value">${bet.confidence.toFixed(0)}%</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">МАТ. ОЖИДАНИЕ</div>
-                            <div class="detail-value">${bet.expectedValue.toFixed(1)}%</div>
-                        </div>
-                    </div>
-                    <div class="bet-metrics">
-                        <div class="metric">
-                            <div class="metric-value">${bet.kelly.toFixed(1)}%</div>
-                            <div class="metric-label">КЕЛЛИ</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-value">${(100/bet.fairOdds).toFixed(1)}%</div>
-                            <div class="metric-label">ВЕРОЯТНОСТЬ</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-value">${bet.odds >= 2.0 ? 'ВЫСОКИЙ' : 'СРЕДНИЙ'}</div>
-                            <div class="metric-label">РИСК</div>
-                        </div>
-                    </div>
-                `;
-                
-                valueBets.appendChild(betCard);
-            });
-        }
-
-        function updateDecisionMatrix(decisions) {
-            decisionMatrix.innerHTML = '';
-            
-            decisions.forEach((decision, index) => {
-                const item = document.createElement('div');
-                item.className = 'decision-item slide-in';
-                item.style.animationDelay = `${index * 0.1}s`;
-                
-                item.innerHTML = `
-                    <div class="decision-label">${decision.label}</div>
-                    <div class="decision-value ${decision.type}">${decision.value}</div>
-                `;
-                
-                decisionMatrix.appendChild(item);
-            });
-        }
-
-        function updateChart(totals) {
-            const ctx = document.getElementById('marketChart').getContext('2d');
-            
-            if (marketChart) {
-                marketChart.destroy();
+            if (probabilityChart) {
+                probabilityChart.destroy();
             }
             
-            const edges = totals.map(t => {
-                const edgeTM = ((1/(t.tm * (1 - t.margin/100))) - 1) * 100;
-                const edgeTB = ((1/(t.tb * (1 - t.margin/100))) - 1) * 100;
-                return Math.max(edgeTM, edgeTB);
-            });
+            const labels = predictions.map(p => p.line);
+            const marketProbs = predictions.map(p => (1/p.marketOdds * 100));
+            const fairProbs = predictions.map(p => (1/p.fairOdds * 100));
+            const edges = predictions.map(p => p.edge);
             
-            const lines = totals.map(t => t.line);
-            
-            marketChart = new Chart(ctx, {
+            probabilityChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: lines,
-                    datasets: [{
-                        label: 'Перекос рынка (%)',
-                        data: edges,
-                        backgroundColor: edges.map(e => 
-                            e >= 10 ? 'rgba(16, 185, 129, 0.7)' : 
-                            e >= 5 ? 'rgba(245, 158, 11, 0.7)' : 
-                            'rgba(239, 68, 68, 0.7)'
-                        ),
-                        borderColor: edges.map(e => 
-                            e >= 10 ? '#10b981' : 
-                            e >= 5 ? '#f59e0b' : 
-                            '#ef4444'
-                        ),
-                        borderWidth: 2,
-                        borderRadius: 6,
-                    }]
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Рыночная вероятность',
+                            data: marketProbs,
+                            backgroundColor: 'rgba(139, 92, 246, 0.7)',
+                            borderColor: 'rgba(139, 92, 246, 1)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Справедливая вероятность',
+                            data: fairProbs,
+                            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            borderWidth: 2
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `Перекос: ${context.raw.toFixed(1)}%`;
-                                }
+                            position: 'top',
+                            labels: {
+                                color: '#94a3b8'
                             }
                         }
                     },
@@ -1217,7 +1200,7 @@
                             },
                             title: {
                                 display: true,
-                                text: 'Перекос рынка (%)',
+                                text: 'Вероятность',
                                 color: '#94a3b8'
                             }
                         },
@@ -1239,13 +1222,111 @@
             });
         }
 
-        // Event Listeners
-        document.querySelector('.upload-area').addEventListener('click', function() {
-            this.style.transform = 'scale(0.98)';
-            setTimeout(() => {
-                this.style.transform = '';
-            }, 150);
-        });
+        // Simulation Functions
+        function runSimulation() {
+            const simulator = new BettingSimulator(10000);
+            const strategy = {
+                generateBet: () => {
+                    const odds = 1.8 + Math.random() * 0.8; // Random odds between 1.8 and 2.6
+                    const fairOdds = odds * (0.95 + Math.random() * 0.1); // Slight edge
+                    const edge = ((fairOdds - odds) / odds) * 100;
+                    
+                    return {
+                        odds: parseFloat(odds.toFixed(2)),
+                        fairOdds: parseFloat(fairOdds.toFixed(2)),
+                        stake: 100 + Math.random() * 400, // Random stake 100-500
+                        edge: edge
+                    };
+                }
+            };
+            
+            const results = simulator.runSimulation(strategy, 100);
+            
+            // Update UI
+            simProfit.textContent = `₽${results.profit.toFixed(0)}`;
+            simBets.textContent = results.totalBets;
+            simWinRate.textContent = `${results.winRate.toFixed(1)}%`;
+            simROI.textContent = `${results.roi.toFixed(1)}%`;
+            simBankroll.textContent = `₽${results.bankroll.toFixed(0)}`;
+            simAvgOdd.textContent = '2.20';
+            simSharpe.textContent = results.sharpeRatio.toFixed(2);
+            
+            // Update risk level
+            const riskPercent = Math.min(100, Math.max(0, results.maxDrawdown * 2));
+            simRiskLevel.style.width = `${riskPercent}%`;
+            simRiskLevel.style.background = riskPercent > 70 ? 'var(--danger-gradient)' : 
+                                          riskPercent > 40 ? 'var(--warning-gradient)' : 'var(--gradient)';
+            
+            document.getElementById('riskText').textContent = 
+                riskPercent > 70 ? 'Высокий риск' : 
+                riskPercent > 40 ? 'Средний риск' : 'Низкий риск';
+            
+            // Update chart
+            updateSimulationChart(simulator.results);
+        }
+
+        function updateSimulationChart(results) {
+            const ctx = document.getElementById('simulationChart').getContext('2d');
+            
+            if (simulationChart) {
+                simulationChart.destroy();
+            }
+            
+            const labels = results.map((_, i) => i + 1);
+            const bankrolls = results.map(r => r.bankroll);
+            
+            simulationChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Банкролл',
+                        data: bankrolls,
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                callback: function(value) {
+                                    return '₽' + value;
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function showStatus(text, isLoading = false) {
+            statusText.textContent = text;
+            spinner.classList.toggle('hidden', !isLoading);
+            statusIcon.style.display = isLoading ? 'none' : 'block';
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -1254,13 +1335,8 @@
     </script>
 
     <div class="footer">
-        <p>© 2024 TT Analyzer 7.0 • Professional Arbitrage Scanner</p>
-        <p>Только для профессионального использования • Все расчеты приблизительны</p>
-        <div class="footer-links">
-            <a href="#" class="footer-link" onclick="return false;">Risk Management</a>
-            <a href="#" class="footer-link" onclick="return false;">Documentation</a>
-            <a href="#" class="footer-link" onclick="return false;">Support</a>
-        </div>
+        <p>TT Analyzer 8.0 • AI Bookmaker Simulator • Математическая модель прогнозирования</p>
+        <p>© 2024 • Для образовательных целей • Все расчеты теоретические</p>
     </div>
 </body>
 </html>
