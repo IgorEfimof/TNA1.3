@@ -1730,6 +1730,7 @@
                 this.totals = [];
                 this.marketData = {};
                 this.valueBets = [];
+                this.bestConfidenceBet = null;
                 this.riskMetrics = {};
                 this.decisions = [];
             }
@@ -1814,6 +1815,10 @@
                     const edgeTM = (total.fairOdds.tm - total.tm) / total.tm * 100;
                     const edgeTB = (total.fairOdds.tb - total.tb) / total.tb * 100;
 
+                    // Calculate confidence (вероятность успеха)
+                    const confidenceTM = this.calculateConfidence(edgeTM, total.tm);
+                    const confidenceTB = this.calculateConfidence(edgeTB, total.tb);
+
                     // Identify value bets (edge > 5%)
                     if (edgeTM > 5 && total.tm >= 1.70) {
                         valueBets.push({
@@ -1821,8 +1826,8 @@
                             type: 'ТМ',
                             odds: total.tm,
                             edge: edgeTM,
+                            confidence: confidenceTM,
                             fairOdds: total.fairOdds.tm,
-                            confidence: this.calculateConfidence(edgeTM, total.tm),
                             expectedValue: this.calculateEV(total.tm, 1/total.fairOdds.tm),
                             kelly: this.calculateKelly(total.tm, 1/total.fairOdds.tm)
                         });
@@ -1834,8 +1839,8 @@
                             type: 'ТБ',
                             odds: total.tb,
                             edge: edgeTB,
+                            confidence: confidenceTB,
                             fairOdds: total.fairOdds.tb,
-                            confidence: this.calculateConfidence(edgeTB, total.tb),
                             expectedValue: this.calculateEV(total.tb, 1/total.fairOdds.tb),
                             kelly: this.calculateKelly(total.tb, 1/total.fairOdds.tb)
                         });
@@ -1850,6 +1855,13 @@
                     }
                 });
 
+                // Sort value bets by confidence (вероятность) - НОВАЯ ЛОГИКА
+                valueBets.sort((a, b) => b.confidence - a.confidence);
+                
+                // Find best bet by confidence
+                this.valueBets = valueBets;
+                this.bestConfidenceBet = valueBets.length > 0 ? valueBets[0] : null;
+
                 // Calculate market overview metrics
                 this.marketData = {
                     avgMargin: totalMargin / this.totals.length,
@@ -1861,15 +1873,20 @@
                     marketEfficiency: 100 - (totalMargin / this.totals.length)
                 };
 
-                this.valueBets = valueBets.sort((a, b) => b.edge - a.edge);
                 this.calculateRiskMetrics();
                 this.decisions = this.getDecisionMatrix();
             }
 
             calculateConfidence(edge, odds) {
-                let confidence = edge * 2;
-                if (odds >= 2.0) confidence *= 1.2;
-                if (odds >= 3.0) confidence *= 1.5;
+                // НОВАЯ ЛОГИКА: Вероятность успеха основана на fair probability
+                const fairProbability = 1 / (odds * (1 - edge/100));
+                let confidence = fairProbability * 100;
+                
+                // Корректировка на ликвидность
+                if (odds >= 2.0) confidence *= 0.95;
+                if (odds >= 3.0) confidence *= 0.90;
+                
+                // Ограничение диапазона
                 return Math.min(95, Math.max(20, confidence));
             }
 
@@ -1900,8 +1917,7 @@
             }
 
             calculateRiskMetrics() {
-                const bestBet = this.valueBets[0];
-                if (!bestBet) {
+                if (!this.bestConfidenceBet) {
                     this.riskMetrics = {
                         riskScore: 8,
                         optimalStake: 0,
@@ -1910,6 +1926,8 @@
                     };
                     return;
                 }
+
+                const bestBet = this.bestConfidenceBet;
 
                 let riskScore = 5;
                 if (bestBet.odds >= 2.5) riskScore += 2;
@@ -1931,13 +1949,13 @@
             getDecisionMatrix() {
                 const decisions = [];
                 
-                if (this.valueBets.length > 0) {
-                    const bestBet = this.valueBets[0];
+                if (this.bestConfidenceBet) {
+                    const bestBet = this.bestConfidenceBet;
                     
                     decisions.push({
-                        label: 'Перекос рынка',
-                        value: `${bestBet.edge.toFixed(1)}%`,
-                        type: bestBet.edge >= 10 ? 'profit' : 'risk'
+                        label: 'Вероятность успеха',
+                        value: `${bestBet.confidence.toFixed(1)}%`,
+                        type: bestBet.confidence >= 65 ? 'profit' : bestBet.confidence >= 55 ? 'risk' : 'danger'
                     });
                     
                     decisions.push({
@@ -1947,15 +1965,15 @@
                     });
                     
                     decisions.push({
-                        label: 'Шансы на успех',
-                        value: `${bestBet.confidence.toFixed(0)}%`,
-                        type: bestBet.confidence >= 70 ? 'profit' : 'risk'
+                        label: 'Коэффициент',
+                        value: `${bestBet.odds.toFixed(2)}`,
+                        type: bestBet.odds >= 2.0 ? 'risk' : 'profit'
                     });
                     
                     decisions.push({
-                        label: 'Эффективность рынка',
-                        value: `${this.marketData.marketEfficiency.toFixed(1)}%`,
-                        type: this.marketData.marketEfficiency >= 95 ? 'profit' : 'risk'
+                        label: 'Перекос рынка',
+                        value: `${bestBet.edge.toFixed(1)}%`,
+                        type: bestBet.edge >= 10 ? 'profit' : 'risk'
                     });
                 }
                 
@@ -1963,9 +1981,9 @@
             }
 
             getBestRecommendation() {
-                if (this.valueBets.length === 0) return 'Нет рекомендаций';
-                const bestBet = this.valueBets[0];
-                return `${bestBet.type} ${bestBet.line} @ ${bestBet.odds.toFixed(2)} (Перекос: ${bestBet.edge.toFixed(1)}%)`;
+                if (!this.bestConfidenceBet) return 'Нет рекомендаций';
+                const bestBet = this.bestConfidenceBet;
+                return `${bestBet.type} ${bestBet.line} @ ${bestBet.odds.toFixed(2)} (Вероятность: ${bestBet.confidence.toFixed(1)}%)`;
             }
         }
 
@@ -2037,11 +2055,12 @@
                 `${analyzer.valueBets[0].expectedValue.toFixed(1)}%` : '0%';
             arbitrage.textContent = `${analyzer.marketData.arbitrage.toFixed(2)}%`;
             lineStrength.textContent = `${Math.round(analyzer.marketData.lineStrength)}`;
-            confidenceBadge.textContent = analyzer.valueBets.length > 0 ? 
-                `${Math.round(analyzer.valueBets[0].confidence)}%` : '0%';
+            confidenceBadge.textContent = analyzer.bestConfidenceBet ? 
+                `${Math.round(analyzer.bestConfidenceBet.confidence)}%` : '0%';
 
-            // Update value bets
-            updateValueBets(analyzer.valueBets);
+            // Update value bets (still sorted by edge for display)
+            const sortedByEdge = [...analyzer.valueBets].sort((a, b) => b.edge - a.edge);
+            updateValueBets(sortedByEdge);
 
             // Update decision matrix
             updateDecisionMatrix(analyzer.decisions);
@@ -2072,15 +2091,19 @@
             }
 
             bets.slice(0, 3).forEach((bet, index) => {
-                const cardClass = bet.edge >= 15 ? 'high-value' : bet.edge >= 8 ? 'medium-value' : '';
+                const cardClass = bet.confidence >= 70 ? 'high-value' : bet.confidence >= 60 ? 'medium-value' : '';
                 
                 const betCard = document.createElement('div');
                 betCard.className = `bet-card ${cardClass} slide-in`;
                 betCard.style.animationDelay = `${index * 0.1}s`;
                 
+                // Highlight the best confidence bet
+                const isBestBet = currentAnalysisData.bestConfidenceBet === bet;
+                
                 betCard.innerHTML = `
+                    ${isBestBet ? '<div class="pulse" style="position: absolute; top: 10px; right: 10px; background: var(--profit); color: white; padding: 4px 8px; border-radius: 12px; font-size: 10px; font-weight: 700;">⭐ ЛУЧШАЯ</div>' : ''}
                     <div class="bet-header">
-                        <div class="bet-title">⭐ ${bet.type} ${bet.line}</div>
+                        <div class="bet-title">${bet.type} ${bet.line}</div>
                         <div class="bet-odds">${bet.odds.toFixed(2)}</div>
                     </div>
                     <div class="bet-details">
@@ -2091,12 +2114,14 @@
                             </div>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">СПРАВЕДЛИВЫЙ КЭФ</div>
-                            <div class="detail-value">${bet.fairOdds.toFixed(2)}</div>
+                            <div class="detail-label">ВЕРОЯТНОСТЬ</div>
+                            <div class="detail-value" style="color: ${bet.confidence >= 70 ? '#10b981' : bet.confidence >= 60 ? '#f59e0b' : '#ef4444'}">
+                                ${bet.confidence.toFixed(1)}%
+                            </div>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">ДОВЕРИЕ</div>
-                            <div class="detail-value">${bet.confidence.toFixed(0)}%</div>
+                            <div class="detail-label">СПРАВЕДЛИВЫЙ КЭФ</div>
+                            <div class="detail-value">${bet.fairOdds.toFixed(2)}</div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">МАТ. ОЖИДАНИЕ</div>
@@ -2109,8 +2134,8 @@
                             <div class="metric-label">КЕЛЛИ</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-value">${(100/bet.fairOdds).toFixed(1)}%</div>
-                            <div class="metric-label">ВЕРОЯТНОСТЬ</div>
+                            <div class="metric-value">${bet.confidence >= 70 ? 'ВЫСОКАЯ' : bet.confidence >= 60 ? 'СРЕДНЯЯ' : 'НИЗКАЯ'}</div>
+                            <div class="metric-label">УВЕРЕННОСТЬ</div>
                         </div>
                         <div class="metric">
                             <div class="metric-value">${bet.odds >= 2.0 ? 'ВЫСОКИЙ' : 'СРЕДНИЙ'}</div>
@@ -2147,10 +2172,13 @@
                 marketChart.destroy();
             }
             
-            const edges = totals.map(t => {
+            // Use confidence values for chart
+            const confidences = totals.map(t => {
                 const edgeTM = ((1/(t.tm * (1 - t.margin/100))) - 1) * 100;
                 const edgeTB = ((1/(t.tb * (1 - t.margin/100))) - 1) * 100;
-                return Math.max(edgeTM, edgeTB);
+                const confidenceTM = Math.min(95, Math.max(20, (1/t.fairOdds.tm) * 100 * 0.95));
+                const confidenceTB = Math.min(95, Math.max(20, (1/t.fairOdds.tb) * 100 * 0.95));
+                return Math.max(confidenceTM, confidenceTB);
             });
             
             const lines = totals.map(t => t.line);
@@ -2160,16 +2188,16 @@
                 data: {
                     labels: lines,
                     datasets: [{
-                        label: 'Перекос рынка (%)',
-                        data: edges,
-                        backgroundColor: edges.map(e => 
-                            e >= 10 ? 'rgba(16, 185, 129, 0.7)' : 
-                            e >= 5 ? 'rgba(245, 158, 11, 0.7)' : 
+                        label: 'Вероятность успеха (%)',
+                        data: confidences,
+                        backgroundColor: confidences.map(c => 
+                            c >= 70 ? 'rgba(16, 185, 129, 0.7)' : 
+                            c >= 60 ? 'rgba(245, 158, 11, 0.7)' : 
                             'rgba(239, 68, 68, 0.7)'
                         ),
-                        borderColor: edges.map(e => 
-                            e >= 10 ? '#10b981' : 
-                            e >= 5 ? '#f59e0b' : 
+                        borderColor: confidences.map(c => 
+                            c >= 70 ? '#10b981' : 
+                            c >= 60 ? '#f59e0b' : 
                             '#ef4444'
                         ),
                         borderWidth: 2,
@@ -2186,7 +2214,7 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `Перекос: ${context.raw.toFixed(1)}%`;
+                                    return `Вероятность: ${context.raw.toFixed(1)}%`;
                                 }
                             }
                         }
@@ -2194,6 +2222,7 @@
                     scales: {
                         y: {
                             beginAtZero: true,
+                            max: 100,
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.1)'
                             },
@@ -2205,7 +2234,7 @@
                             },
                             title: {
                                 display: true,
-                                text: 'Перекос рынка (%)',
+                                text: 'Вероятность успеха (%)',
                                 color: '#94a3b8'
                             }
                         },
@@ -2229,12 +2258,12 @@
 
         // Journal Functions
         function showSaveModal() {
-            if (!currentAnalysisData || currentAnalysisData.valueBets.length === 0) {
+            if (!currentAnalysisData || !currentAnalysisData.bestConfidenceBet) {
                 alert('Сначала выполните анализ и найдите value-ставки');
                 return;
             }
             
-            // Set recommendation from analysis
+            // Set recommendation from analysis (using best confidence bet)
             recommendationInput.value = currentAnalysisData.getBestRecommendation();
             
             // Reset form
@@ -2276,6 +2305,11 @@
                 return;
             }
             
+            if (!currentAnalysisData.bestConfidenceBet) {
+                alert('Нет данных для сохранения');
+                return;
+            }
+            
             // Create journal entry
             const entry = {
                 id: Date.now(),
@@ -2284,7 +2318,10 @@
                 recommendation: recommendationInput.value,
                 result: result,
                 marketEdge: currentAnalysisData.marketData.maxEdge,
-                confidence: currentAnalysisData.valueBets[0]?.confidence || 0
+                confidence: currentAnalysisData.bestConfidenceBet.confidence,
+                odds: currentAnalysisData.bestConfidenceBet.odds,
+                betType: currentAnalysisData.bestConfidenceBet.type,
+                line: currentAnalysisData.bestConfidenceBet.line
             };
             
             // Save to localStorage
@@ -2316,10 +2353,10 @@
             winBets.textContent = wins;
             lossBets.textContent = losses;
             
-            // Calculate average edge
-            const avgEdgeValue = journal.length > 0 ? 
-                journal.reduce((sum, entry) => sum + entry.marketEdge, 0) / journal.length : 0;
-            avgEdge.textContent = avgEdgeValue.toFixed(1) + '%';
+            // Calculate average confidence
+            const avgConfidence = journal.length > 0 ? 
+                journal.reduce((sum, entry) => sum + entry.confidence, 0) / journal.length : 0;
+            avgEdge.textContent = avgConfidence.toFixed(1) + '%';
             
             // Calculate win rate
             if (journal.length > 0) {
@@ -2367,16 +2404,20 @@
                             <div class="entry-value">${entry.liveScore}</div>
                         </div>
                         <div class="entry-field">
-                            <div class="entry-label">Перекос рынка</div>
-                            <div class="entry-value">${entry.marketEdge.toFixed(1)}%</div>
+                            <div class="entry-label">Ставка</div>
+                            <div class="entry-value">${entry.betType} ${entry.line}</div>
+                        </div>
+                        <div class="entry-field">
+                            <div class="entry-label">Коэффициент</div>
+                            <div class="entry-value">${entry.odds.toFixed(2)}</div>
+                        </div>
+                        <div class="entry-field">
+                            <div class="entry-label">Вероятность</div>
+                            <div class="entry-value">${entry.confidence.toFixed(1)}%</div>
                         </div>
                         <div class="entry-field">
                             <div class="entry-label">Рекомендация</div>
-                            <div class="entry-value">${entry.recommendation}</div>
-                        </div>
-                        <div class="entry-field">
-                            <div class="entry-label">Доверие</div>
-                            <div class="entry-value">${entry.confidence.toFixed(0)}%</div>
+                            <div class="entry-value" style="font-size: 13px;">${entry.recommendation}</div>
                         </div>
                     </div>
                 `;
